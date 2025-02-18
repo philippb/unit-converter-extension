@@ -1,6 +1,7 @@
-// Conversion constants
-const INCH_TO_CM = 2.54;
-const FOOT_TO_METER = 0.3048;
+// Conversion constants to meters
+const INCH_TO_METERS = 0.0254;
+const FOOT_TO_METERS = 0.3048;
+const MILE_TO_METERS = 1609.344; // 1 mile = 1609.344 meters
 
 // Remove unused constants
 // const YARD_TO_METER = 0.9144;
@@ -8,9 +9,8 @@ const FOOT_TO_METER = 0.3048;
 // const POUND_TO_KG = 0.453592;
 // const OUNCE_TO_GRAM = 28.3495;
 
-function convertToMetric(feet = 0, inches = 0) {
-    const totalMeters = feet * FOOT_TO_METER + (inches * INCH_TO_CM) / 100;
-    return totalMeters.toFixed(4);
+function convertToMeters(feet = 0, inches = 0, miles = 0) {
+    return miles * MILE_TO_METERS + feet * FOOT_TO_METERS + inches * INCH_TO_METERS;
 }
 
 function parseInches(whole, numerator, denominator) {
@@ -24,16 +24,50 @@ function parseInches(whole, numerator, denominator) {
     return inches;
 }
 
+function formatMetricMeasurement(meters) {
+    function formatNumber(num) {
+        // Convert to string with max 2 decimal places
+        const str = num.toFixed(2);
+        // Remove trailing zeros after decimal point
+        return str.replace(/\.?0+$/, '');
+    }
+
+    if (meters === 0) return '0 cm';
+    // Format based on size
+    if (meters >= 1000) {
+        // For very large measurements: use kilometers
+        return `${formatNumber(meters / 1000)} km`;
+    } else if (meters >= 1) {
+        // For human-scale measurements: use meters
+        return `${formatNumber(meters)} m`;
+    } else if (meters >= 0.01) {
+        // For small measurements: use centimeters
+        return `${formatNumber(meters * 100)} cm`;
+    } else {
+        // For very small measurements: use millimeters
+        return `${formatNumber(meters * 1000)} mm`;
+    }
+}
+
 function convertText(text) {
     let converted = text;
 
-    // Handle combined feet and inches pattern first
+    // Convert miles first (should be done before feet to avoid partial matches)
+    converted = converted.replace(
+        /\b(\d+(?:\.\d+)?)\s*(?:mile|miles|mi)\b(?!\s*(?:\(.*\)))/gi,
+        function (match, miles) {
+            const meters = convertToMeters(0, 0, parseFloat(miles));
+            return meters === 0 ? match : `${match} (${formatMetricMeasurement(meters)})`;
+        }
+    );
+
+    // Handle combined feet and inches pattern
     converted = converted.replace(
         /\b(\d+(?:\.\d+)?)\s*(?:feet|foot|ft)\s+(?:(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*)?(?:inches|inch|in)\b/gi,
         function (match, feet, wholeInches, numerator, denominator) {
             const inchValue = parseInches(wholeInches, numerator, denominator);
-            const meters = convertToMetric(parseFloat(feet), inchValue);
-            return `${match} (${meters} m)`;
+            const meters = convertToMeters(parseFloat(feet), inchValue);
+            return meters === 0 ? match : `${match} (${formatMetricMeasurement(meters)})`;
         }
     );
 
@@ -45,8 +79,8 @@ function convertText(text) {
             if (!whole && !numerator) return match;
 
             const inches = parseInches(whole, numerator, denominator);
-            const cm = (inches * INCH_TO_CM).toFixed(2);
-            return `${match} (${cm} cm)`;
+            const meters = convertToMeters(0, inches);
+            return meters === 0 ? match : `${match} (${formatMetricMeasurement(meters)})`;
         }
     );
 
@@ -54,8 +88,8 @@ function convertText(text) {
     converted = converted.replace(
         /\b(\d+(?:\.\d+)?)\s*(?:foot|feet|ft)\b(?!\s+(?:\d+(?:\.\d+)?(?:\s+)?(?:\d+\s*\/\s*\d+)?\s*)?(?:inches|inch|in)\b)(?!\s*(?:\(.*\)))/gi,
         function (match, feet) {
-            const meters = (parseFloat(feet) * FOOT_TO_METER).toFixed(2);
-            return `${match} (${meters} m)`;
+            const meters = convertToMeters(parseFloat(feet), 0);
+            return meters === 0 ? match : `${match} (${formatMetricMeasurement(meters)})`;
         }
     );
 
@@ -102,4 +136,5 @@ if (typeof window !== 'undefined') {
 if (typeof exports !== 'undefined') {
     exports.convertText = convertText;
     exports.processNode = processNode;
+    exports.formatMetricMeasurement = formatMetricMeasurement; // Export for testing
 }

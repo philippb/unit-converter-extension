@@ -10,7 +10,7 @@ describe('Unit Conversion Tests', () => {
         test('converts whole inches', () => {
             document.body.textContent = 'The table is 5 inches wide';
             processNode(document.body);
-            expect(document.body.textContent).toBe('The table is 5 inches (12.70 cm) wide');
+            expect(document.body.textContent).toBe('The table is 5 inches (12.7 cm) wide');
         });
 
         test('converts decimal inches', () => {
@@ -22,10 +22,10 @@ describe('Unit Conversion Tests', () => {
         test('converts common fractions', () => {
             const fractions = [
                 { input: '1/2 inch', expected: '1/2 inch (1.27 cm)' },
-                { input: '1/4 inch', expected: '1/4 inch (0.64 cm)' },
-                { input: '3/4 inch', expected: '3/4 inch (1.91 cm)' },
-                { input: '1/8 inch', expected: '1/8 inch (0.32 cm)' },
-                { input: '3/8 inch', expected: '3/8 inch (0.95 cm)' },
+                { input: '1/4 inch', expected: '1/4 inch (6.35 mm)' },
+                { input: '3/4 inch', expected: '3/4 inch (1.9 cm)' },
+                { input: '1/8 inch', expected: '1/8 inch (3.17 mm)' },
+                { input: '3/8 inch', expected: '3/8 inch (9.52 mm)' },
             ];
 
             fractions.forEach(({ input, expected }) => {
@@ -38,7 +38,7 @@ describe('Unit Conversion Tests', () => {
         test('converts mixed numbers', () => {
             const mixedNumbers = [
                 { input: '2 1/2 inches', expected: '2 1/2 inches (6.35 cm)' },
-                { input: '1 3/4 inches', expected: '1 3/4 inches (4.45 cm)' },
+                { input: '1 3/4 inches', expected: '1 3/4 inches (4.44 cm)' },
                 { input: '3 1/8 inches', expected: '3 1/8 inches (7.94 cm)' },
             ];
 
@@ -87,11 +87,11 @@ describe('Unit Conversion Tests', () => {
                 },
                 {
                     input: 'A board 6 feet 5 1/2 inches long',
-                    expected: 'A board 6 feet 5 1/2 inches (1.9685 m) long',
+                    expected: 'A board 6 feet 5 1/2 inches (1.97 m) long',
                 },
                 {
                     input: 'Clearance: 6ft 2in minimum',
-                    expected: 'Clearance: 6ft 2in (1.8796 m) minimum',
+                    expected: 'Clearance: 6ft 2in (1.88 m) minimum',
                 },
             ];
 
@@ -107,12 +107,12 @@ describe('Unit Conversion Tests', () => {
         test('handles zero measurements', () => {
             document.body.textContent = '0 inches from the wall';
             processNode(document.body);
-            expect(document.body.textContent).toBe('0 inches (0.00 cm) from the wall');
+            expect(document.body.textContent).toBe('0 inches from the wall');
         });
 
         test('handles measurements with spaces', () => {
             const spaceCases = [
-                { input: '5    inches', expected: '5    inches (12.70 cm)' },
+                { input: '5    inches', expected: '5    inches (12.7 cm)' },
                 { input: '2   1/2   inches', expected: '2   1/2   inches (6.35 cm)' },
             ];
 
@@ -168,6 +168,49 @@ describe('Unit Conversion Tests', () => {
                 expect(newElement.textContent).toBe('New content: 6 inches (15.24 cm) tall');
                 done();
             }, 0);
+        });
+    });
+
+    describe('Metric Unit Selection', () => {
+        test('selects appropriate metric units based on size', () => {
+            const { formatMetricMeasurement } = require('./content.js');
+
+            const cases = [
+                { meters: 0, expected: '0 cm' },
+                { meters: 0.005, expected: '5 mm' }, // 5mm
+                { meters: 0.05, expected: '5 cm' }, // 5cm
+                { meters: 0.5, expected: '50 cm' }, // 50cm
+                { meters: 1.5, expected: '1.5 m' }, // 1.5m
+                { meters: 100, expected: '100 m' }, // 100m
+                { meters: 1500, expected: '1.5 km' }, // 1.5km
+            ];
+
+            cases.forEach(({ meters, expected }) => {
+                expect(formatMetricMeasurement(meters)).toBe(expected);
+            });
+        });
+
+        test('handles real-world measurements appropriately', () => {
+            const complexCases = [
+                {
+                    input: 'The room is 1000 feet long',
+                    expected: 'The room is 1000 feet (304.8 m) long',
+                },
+                {
+                    input: 'A hair is 0.001 inches thick',
+                    expected: 'A hair is 0.001 inches (0.03 mm) thick',
+                },
+                {
+                    input: 'The road is 2 miles long',
+                    expected: 'The road is 2 miles (3.22 km) long',
+                },
+            ];
+
+            complexCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
         });
     });
 });
