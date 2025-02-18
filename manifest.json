@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Metric<>Imperial",
+  "version": "1.0",
+  "description": "Automatically converts imperial measurements to metric in web pages",
+  "permissions": [
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "icons": {
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+} 
