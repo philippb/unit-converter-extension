@@ -371,3 +371,134 @@ describe('Editable Context Detection', () => {
         });
     });
 });
+
+describe('Weight Conversion Tests', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    describe('Ounce Conversions', () => {
+        test('converts whole ounces', () => {
+            document.body.textContent = 'The package weighs 5 ounces';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('The package weighs 5 ounces (141.75 g)');
+        });
+
+        test('converts decimal ounces', () => {
+            document.body.textContent = 'A weight of 0.5 oz';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('A weight of 0.5 oz (14.17 g)');
+        });
+
+        test('converts fractions of ounces', () => {
+            const fractions = [
+                { input: '1/2 ounce', expected: '1/2 ounce (14.17 g)' },
+                { input: '1/4 ounce', expected: '1/4 ounce (7.09 g)' },
+                { input: '3/4 ounce', expected: '3/4 ounce (21.26 g)' },
+                { input: '1/8 ounce', expected: '1/8 ounce (3.54 g)' },
+            ];
+
+            fractions.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+
+    describe('Pound Conversions', () => {
+        test('converts whole pounds', () => {
+            document.body.textContent = 'The box weighs 10 pounds';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('The box weighs 10 pounds (4.54 kg)');
+        });
+
+        test('converts decimal pounds', () => {
+            document.body.textContent = 'A weight of 2.5 lbs';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('A weight of 2.5 lbs (1.13 kg)');
+        });
+
+        test('handles different pound notations', () => {
+            const notations = [
+                { input: '6 pounds', expected: '6 pounds (2.72 kg)' },
+                { input: '6 lbs', expected: '6 lbs (2.72 kg)' },
+                { input: '6 lb', expected: '6 lb (2.72 kg)' },
+            ];
+
+            notations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+
+    describe('Complex Weight Measurements', () => {
+        test('handles pounds and ounces together', () => {
+            const complexCases = [
+                {
+                    input: 'The baby weighs 7 pounds 8 ounces',
+                    expected: 'The baby weighs 7 pounds 8 ounces (3.4 kg)',
+                },
+                {
+                    input: 'Package weight: 2lb 4oz',
+                    expected: 'Package weight: 2lb 4oz (1.02 kg)',
+                },
+            ];
+
+            complexCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+
+    describe('Weight Edge Cases', () => {
+        test('handles zero weights', () => {
+            document.body.textContent = '0 pounds on the scale';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('0 pounds on the scale');
+        });
+
+        test('ignores vague weight descriptions', () => {
+            const vagueDescriptions = [
+                {
+                    input: 'It weighs a few pounds',
+                    expected: 'It weighs a few pounds',
+                },
+                {
+                    input: 'Only a couple of ounces',
+                    expected: 'Only a couple of ounces',
+                },
+            ];
+
+            vagueDescriptions.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+
+    describe('Weight Metric Unit Selection', () => {
+        test('selects appropriate metric units based on weight', () => {
+            const { formatWeightMeasurement } = require('./content.js');
+
+            const cases = [
+                { grams: 0, expected: '0 g' },
+                { grams: 0.5, expected: '0.5 g' },
+                { grams: 5, expected: '5 g' },
+                { grams: 500, expected: '500 g' },
+                { grams: 1000, expected: '1 kg' },
+                { grams: 1500, expected: '1.5 kg' },
+                { grams: 2000, expected: '2 kg' },
+            ];
+
+            cases.forEach(({ grams, expected }) => {
+                expect(formatWeightMeasurement(grams)).toBe(expected);
+            });
+        });
+    });
+});
