@@ -1,4 +1,4 @@
-const { processNode } = require('./content.js');
+const { processNode, isEditableContext } = require('./content.js');
 
 describe('Unit Conversion Tests', () => {
     // Load the content script before each test
@@ -211,6 +211,87 @@ describe('Unit Conversion Tests', () => {
                 processNode(document.body);
                 expect(document.body.textContent).toBe(expected);
             });
+        });
+    });
+
+    describe('Form Field Handling', () => {
+        test('ignores text in input fields', () => {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = 'Distance: 5 inches';
+            document.body.appendChild(input);
+
+            processNode(input);
+            expect(input.value).toBe('Distance: 5 inches');
+        });
+
+        test('ignores text in textareas', () => {
+            const textarea = document.createElement('textarea');
+            textarea.value = 'The room is 10 feet wide';
+            document.body.appendChild(textarea);
+
+            processNode(textarea);
+            expect(textarea.value).toBe('The room is 10 feet wide');
+        });
+
+        test('processes text in regular divs', () => {
+            const div = document.createElement('div');
+            div.textContent = 'The ceiling is 8 feet high';
+            document.body.appendChild(div);
+
+            processNode(div);
+            expect(div.textContent).toBe('The ceiling is 8 feet (2.44 m) high');
+        });
+    });
+});
+
+describe('Editable Context Detection', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    describe('Form Elements', () => {
+        test('detects input elements', () => {
+            const input = document.createElement('input');
+            expect(isEditableContext(input)).toBe(true);
+        });
+
+        test('detects textarea elements', () => {
+            const textarea = document.createElement('textarea');
+            expect(isEditableContext(textarea)).toBe(true);
+        });
+
+        test('detects text nodes in input elements', () => {
+            const input = document.createElement('input');
+            const textNode = document.createTextNode('Sample text');
+            input.appendChild(textNode);
+            expect(isEditableContext(textNode)).toBe(true);
+        });
+
+        test('detects text nodes in textarea elements', () => {
+            const textarea = document.createElement('textarea');
+            const textNode = document.createTextNode('Sample text');
+            textarea.appendChild(textNode);
+            expect(isEditableContext(textNode)).toBe(true);
+        });
+    });
+
+    describe('Non-Editable Elements', () => {
+        test('regular divs are not editable', () => {
+            const div = document.createElement('div');
+            expect(isEditableContext(div)).toBe(false);
+        });
+
+        test('text nodes in regular divs are not editable', () => {
+            const div = document.createElement('div');
+            const textNode = document.createTextNode('Sample text');
+            div.appendChild(textNode);
+            expect(isEditableContext(textNode)).toBe(false);
+        });
+
+        test('spans are not editable', () => {
+            const span = document.createElement('span');
+            expect(isEditableContext(span)).toBe(false);
         });
     });
 });

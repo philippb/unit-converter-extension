@@ -96,7 +96,29 @@ function convertText(text) {
     return converted;
 }
 
+function isEditableContext(node) {
+    // For text nodes, start checking from their parent element
+    const startNode = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+
+    // Check if node is inside an editable context
+    let current = startNode;
+    while (current) {
+        // Check for input and textarea elements
+        if (current.tagName === 'INPUT' || current.tagName === 'TEXTAREA') {
+            return true;
+        }
+        current = current.parentElement;
+    }
+
+    return false;
+}
+
 function processNode(node) {
+    // Skip processing if we're in an editable context
+    if (isEditableContext(node)) {
+        return;
+    }
+
     if (node.nodeType === Node.TEXT_NODE) {
         const originalText = node.textContent;
         const newText = convertText(originalText);
@@ -136,5 +158,6 @@ if (typeof window !== 'undefined') {
 if (typeof exports !== 'undefined') {
     exports.convertText = convertText;
     exports.processNode = processNode;
-    exports.formatMetricMeasurement = formatMetricMeasurement; // Export for testing
+    exports.formatMetricMeasurement = formatMetricMeasurement;
+    exports.isEditableContext = isEditableContext;
 }
