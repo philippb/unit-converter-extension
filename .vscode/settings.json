@@ -1,0 +1,14 @@
+{
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": true
+    },
+    "jest.autoRun": "off",
+    "jest.showCoverageOnLoad": true,
+    "files.exclude": {
+        "**/.git": true,
+        "**/node_modules": true,
+        "**/coverage": true
+    }
+} 
