@@ -518,19 +518,19 @@ describe('Liquid Conversion Tests', () => {
         test('converts quarts', () => {
             document.body.textContent = 'Add 1 quart of milk';
             processNode(document.body);
-            expect(document.body.textContent).toBe('Add 1 quart (946.35 ml) of milk');
+            expect(document.body.textContent).toBe('Add 1 quart (0.95 L) of milk');
         });
 
         test('converts pints', () => {
             document.body.textContent = 'Contains 1 pint';
             processNode(document.body);
-            expect(document.body.textContent).toBe('Contains 1 pint (473.18 ml)');
+            expect(document.body.textContent).toBe('Contains 1 pint (0.47 L)');
         });
 
         test('converts cups', () => {
             document.body.textContent = 'Add 2 cups of flour';
             processNode(document.body);
-            expect(document.body.textContent).toBe('Add 2 cups (473.18 ml) of flour');
+            expect(document.body.textContent).toBe('Add 2 cups (0.47 L) of flour');
         });
 
         test('converts fluid ounces', () => {
@@ -573,7 +573,7 @@ describe('Liquid Conversion Tests', () => {
         test('handles different notations', () => {
             const notations = [
                 { input: '1 gal', expected: '1 gal (3.79 L)' },
-                { input: '1 qt', expected: '1 qt (946.35 ml)' },
+                { input: '1 qt', expected: '1 qt (0.95 L)' },
                 { input: '1 tbsp', expected: '1 tbsp (14.79 ml)' },
                 { input: '1 tsp', expected: '1 tsp (4.93 ml)' },
             ];
@@ -621,7 +621,10 @@ describe('Liquid Conversion Tests', () => {
                 { liters: 0, expected: '0 ml' },
                 { liters: 0.0005, expected: '0.5 ml' },
                 { liters: 0.005, expected: '5 ml' },
-                { liters: 0.5, expected: '500 ml' },
+                { liters: 0.1, expected: '100 ml' },
+                { liters: 0.24, expected: '240 ml' },
+                { liters: 0.25, expected: '0.25 L' },
+                { liters: 0.5, expected: '0.5 L' },
                 { liters: 1, expected: '1 L' },
                 { liters: 1.5, expected: '1.5 L' },
                 { liters: 2, expected: '2 L' },
@@ -636,10 +639,10 @@ describe('Liquid Conversion Tests', () => {
     describe('Plural Forms', () => {
         test('handles plural forms correctly', () => {
             const pluralCases = [
-                { input: '2.5 cups of flour', expected: '2.5 cups (591.47 ml) of flour' },
+                { input: '2.5 cups of flour', expected: '2.5 cups (0.59 L) of flour' },
                 { input: '1.5 gallons of water', expected: '1.5 gallons (5.68 L) of water' },
                 { input: '2.5 quarts of milk', expected: '2.5 quarts (2.37 L) of milk' },
-                { input: '1.5 pints of cream', expected: '1.5 pints (709.76 ml) of cream' },
+                { input: '1.5 pints of cream', expected: '1.5 pints (0.71 L) of cream' },
                 {
                     input: '2.5 fluid ounces of extract',
                     expected: '2.5 fluid ounces (73.93 ml) of extract',
@@ -649,7 +652,7 @@ describe('Liquid Conversion Tests', () => {
                     input: '2.5 teaspoons of vanilla',
                     expected: '2.5 teaspoons (12.32 ml) of vanilla',
                 },
-                { input: '1 3/4 cups of sugar', expected: '1 3/4 cups (414.03 ml) of sugar' },
+                { input: '1 3/4 cups of sugar', expected: '1 3/4 cups (0.41 L) of sugar' },
                 { input: '2 1/2 gallons of water', expected: '2 1/2 gallons (9.46 L) of water' },
                 { input: '1 1/4 quarts of milk', expected: '1 1/4 quarts (1.18 L) of milk' },
                 { input: '2 3/4 pints of cream', expected: '2 3/4 pints (1.3 L) of cream' },
@@ -686,7 +689,7 @@ describe('Liquid Conversion Tests', () => {
                 },
                 {
                     input: '1 quart and 2.5 quarts',
-                    expected: '1 quart (946.35 ml) and 2.5 quarts (2.37 L)',
+                    expected: '1 quart (0.95 L) and 2.5 quarts (2.37 L)',
                 },
                 {
                     input: '1 tablespoon and 1.5 tablespoons',
@@ -694,7 +697,7 @@ describe('Liquid Conversion Tests', () => {
                 },
                 {
                     input: '1 cup and 1 3/4 cups',
-                    expected: '1 cup (236.59 ml) and 1 3/4 cups (414.03 ml)',
+                    expected: '1 cup (236.59 ml) and 1 3/4 cups (0.41 L)',
                 },
                 {
                     input: '1 gallon and 2 1/2 gallons',
@@ -702,7 +705,7 @@ describe('Liquid Conversion Tests', () => {
                 },
                 {
                     input: '1 quart and 1 1/4 quarts',
-                    expected: '1 quart (946.35 ml) and 1 1/4 quarts (1.18 L)',
+                    expected: '1 quart (0.95 L) and 1 1/4 quarts (1.18 L)',
                 },
                 {
                     input: '1 tablespoon and 2 1/4 tablespoons',
@@ -719,10 +722,10 @@ describe('Liquid Conversion Tests', () => {
 
         test('handles decimal numbers without trailing zeros', () => {
             const decimalCases = [
-                { input: '2.0 cups', expected: '2.0 cups (473.18 ml)' },
+                { input: '2.0 cups', expected: '2.0 cups (0.47 L)' },
                 { input: '1.0 gallon', expected: '1.0 gallon (3.79 L)' },
                 { input: '3.00 quarts', expected: '3.00 quarts (2.84 L)' },
-                { input: '2 1/2 cups', expected: '2 1/2 cups (591.47 ml)' },
+                { input: '2 1/2 cups', expected: '2 1/2 cups (0.59 L)' },
                 { input: '1 1/4 gallon', expected: '1 1/4 gallon (4.73 L)' },
                 { input: '3 3/4 quarts', expected: '3 3/4 quarts (3.55 L)' },
             ];

@@ -277,7 +277,7 @@ function formatLiquidMeasurement(liters) {
     }
 
     if (liters === 0) return '0 ml';
-    if (liters >= 1) {
+    if (liters >= 0.25) {
         return `${formatNumber(liters)} L`;
     } else {
         return `${formatNumber(liters * 1000)} ml`;
