@@ -3,13 +3,18 @@ const LENGTH_INCH_TO_METERS = 0.0254;
 const LENGTH_FOOT_TO_METERS = 0.3048;
 const LENGTH_MILE_TO_METERS = 1609.344; // 1 mile = 1609.344 meters
 
-// Remove unused constants
-// const POUND_TO_KG = 0.453592;
-// const OUNCE_TO_GRAM = 28.3495;
-
 // Add these constants at the top with the other conversion constants
 const WEIGHT_OUNCE_TO_GRAMS = 28.3495;
 const WEIGHT_POUND_TO_GRAMS = 453.592;
+
+// Update the constants to use liters
+const LIQUID_GALLON_TO_L = 3.78541;
+const LIQUID_QUART_TO_L = 0.946353;
+const LIQUID_PINT_TO_L = 0.473176;
+const LIQUID_CUP_TO_L = 0.236588;
+const LIQUID_FLOZ_TO_L = 0.0295735;
+const LIQUID_TBSP_TO_L = 0.0147868;
+const LIQUID_TSP_TO_L = 0.00492892;
 
 function convertLengthToMeters(feet = 0, inches = 0, miles = 0) {
     return (
@@ -232,9 +237,140 @@ function convertWeightText(text) {
     return converted;
 }
 
-// Update the convertText function to handle both length and weight
+// Update the conversion function to use liters
+function convertLiquidToL(
+    gallons = 0,
+    quarts = 0,
+    pints = 0,
+    cups = 0,
+    floz = 0,
+    tbsp = 0,
+    tsp = 0
+) {
+    return (
+        gallons * LIQUID_GALLON_TO_L +
+        quarts * LIQUID_QUART_TO_L +
+        pints * LIQUID_PINT_TO_L +
+        cups * LIQUID_CUP_TO_L +
+        floz * LIQUID_FLOZ_TO_L +
+        tbsp * LIQUID_TBSP_TO_L +
+        tsp * LIQUID_TSP_TO_L
+    );
+}
+
+function parseLiquidFraction(whole, numerator, denominator) {
+    let value = 0;
+    if (whole) {
+        value = parseFloat(whole);
+    }
+    if (numerator && denominator) {
+        value += parseFloat(numerator) / parseFloat(denominator);
+    }
+    return value;
+}
+
+// Update the formatting function to use liters as base
+function formatLiquidMeasurement(liters) {
+    function formatNumber(num) {
+        const str = num.toFixed(2);
+        return str.replace(/\.?0+$/, '');
+    }
+
+    if (liters === 0) return '0 ml';
+    if (liters >= 1) {
+        return `${formatNumber(liters)} L`;
+    } else {
+        return `${formatNumber(liters * 1000)} ml`;
+    }
+}
+
+// Update the text conversion function to use the new liter-based functions
+function convertLiquidText(text) {
+    let converted = text;
+
+    // Convert gallons - updated regex to better handle decimals
+    converted = converted.replace(
+        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:gallon|gallons|gal)s?\b(?!\s*(?:\(.*\)))/gi,
+        function (match, whole, numerator, denominator) {
+            if (!whole && !numerator) return match;
+            const gallons = parseLiquidFraction(whole, numerator, denominator);
+            const liters = convertLiquidToL(gallons);
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        }
+    );
+
+    // Convert quarts - updated regex to better handle decimals
+    converted = converted.replace(
+        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:quart|quarts|qt)s?\b(?!\s*(?:\(.*\)))/gi,
+        function (match, whole, numerator, denominator) {
+            if (!whole && !numerator) return match;
+            const quarts = parseLiquidFraction(whole, numerator, denominator);
+            const liters = convertLiquidToL(0, quarts);
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        }
+    );
+
+    // Convert pints - updated regex to better handle decimals
+    converted = converted.replace(
+        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:pint|pints|pt)s?\b(?!\s*(?:\(.*\)))/gi,
+        function (match, whole, numerator, denominator) {
+            if (!whole && !numerator) return match;
+            const pints = parseLiquidFraction(whole, numerator, denominator);
+            const liters = convertLiquidToL(0, 0, pints);
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        }
+    );
+
+    // Convert cups - updated regex to better handle decimals
+    converted = converted.replace(
+        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:cup|cups|c)s?\b(?!\s*(?:\(.*\)))/gi,
+        function (match, whole, numerator, denominator) {
+            if (!whole && !numerator) return match;
+            const cups = parseLiquidFraction(whole, numerator, denominator);
+            const liters = convertLiquidToL(0, 0, 0, cups);
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        }
+    );
+
+    // Convert fluid ounces - updated regex to better handle decimals
+    converted = converted.replace(
+        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:fluid\s+ounce|fluid\s+ounces|fl\s*oz)s?\b(?!\s*(?:\(.*\)))/gi,
+        function (match, whole, numerator, denominator) {
+            if (!whole && !numerator) return match;
+            const floz = parseLiquidFraction(whole, numerator, denominator);
+            const liters = convertLiquidToL(0, 0, 0, 0, floz);
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        }
+    );
+
+    // Convert tablespoons - updated regex to better handle decimals
+    converted = converted.replace(
+        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:tablespoon|tablespoons|tbsp)s?\b(?!\s*(?:\(.*\)))/gi,
+        function (match, whole, numerator, denominator) {
+            if (!whole && !numerator) return match;
+            const tbsp = parseLiquidFraction(whole, numerator, denominator);
+            const liters = convertLiquidToL(0, 0, 0, 0, 0, tbsp);
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        }
+    );
+
+    // Convert teaspoons - updated regex to better handle decimals
+    converted = converted.replace(
+        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:teaspoon|teaspoons|tsp)s?\b(?!\s*(?:\(.*\)))/gi,
+        function (match, whole, numerator, denominator) {
+            if (!whole && !numerator) return match;
+            const tsp = parseLiquidFraction(whole, numerator, denominator);
+            const liters = convertLiquidToL(0, 0, 0, 0, 0, 0, tsp);
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        }
+    );
+
+    return converted;
+}
+
+// Update the main convertText function to handle liquid measurements
 function convertText(text) {
-    return convertWeightText(convertLengthText(text));
+    return convertLiquidText(convertWeightText(convertLengthText(text)));
 }
 
 // Update exports
@@ -242,8 +378,10 @@ if (typeof exports !== 'undefined') {
     exports.convertText = convertText;
     exports.convertLengthText = convertLengthText;
     exports.convertWeightText = convertWeightText;
+    exports.convertLiquidText = convertLiquidText;
     exports.processNode = processNode;
     exports.formatLengthMeasurement = formatLengthMeasurement;
     exports.formatWeightMeasurement = formatWeightMeasurement;
+    exports.formatLiquidMeasurement = formatLiquidMeasurement;
     exports.isEditableContext = isEditableContext;
 }

@@ -502,3 +502,236 @@ describe('Weight Conversion Tests', () => {
         });
     });
 });
+
+describe('Liquid Conversion Tests', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    describe('Basic Conversions', () => {
+        test('converts gallons', () => {
+            document.body.textContent = 'Fill with 2 gallons of water';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('Fill with 2 gallons (7.57 L) of water');
+        });
+
+        test('converts quarts', () => {
+            document.body.textContent = 'Add 1 quart of milk';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('Add 1 quart (946.35 ml) of milk');
+        });
+
+        test('converts pints', () => {
+            document.body.textContent = 'Contains 1 pint';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('Contains 1 pint (473.18 ml)');
+        });
+
+        test('converts cups', () => {
+            document.body.textContent = 'Add 2 cups of flour';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('Add 2 cups (473.18 ml) of flour');
+        });
+
+        test('converts fluid ounces', () => {
+            document.body.textContent = 'Add 8 fl oz of water';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('Add 8 fl oz (236.59 ml) of water');
+        });
+
+        test('converts tablespoons', () => {
+            document.body.textContent = 'Add 2 tablespoons of oil';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('Add 2 tablespoons (29.57 ml) of oil');
+        });
+
+        test('converts teaspoons', () => {
+            document.body.textContent = 'Add 1 teaspoon of vanilla';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('Add 1 teaspoon (4.93 ml) of vanilla');
+        });
+    });
+
+    describe('Fraction Conversions', () => {
+        test('converts fractions in various units', () => {
+            const fractions = [
+                { input: '1/2 cup', expected: '1/2 cup (118.29 ml)' },
+                { input: '1/4 teaspoon', expected: '1/4 teaspoon (1.23 ml)' },
+                { input: '1/3 tablespoon', expected: '1/3 tablespoon (4.93 ml)' },
+                { input: '1/2 gallon', expected: '1/2 gallon (1.89 L)' },
+            ];
+
+            fractions.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+
+    describe('Mixed Notations', () => {
+        test('handles different notations', () => {
+            const notations = [
+                { input: '1 gal', expected: '1 gal (3.79 L)' },
+                { input: '1 qt', expected: '1 qt (946.35 ml)' },
+                { input: '1 tbsp', expected: '1 tbsp (14.79 ml)' },
+                { input: '1 tsp', expected: '1 tsp (4.93 ml)' },
+            ];
+
+            notations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+
+    describe('Edge Cases', () => {
+        test('handles zero measurements', () => {
+            document.body.textContent = '0 cups of sugar';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('0 cups of sugar');
+        });
+
+        test('ignores vague descriptions', () => {
+            const vagueDescriptions = [
+                {
+                    input: 'Add a few tablespoons',
+                    expected: 'Add a few tablespoons',
+                },
+                {
+                    input: 'Pour in some cups of water',
+                    expected: 'Pour in some cups of water',
+                },
+            ];
+
+            vagueDescriptions.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+
+    describe('Metric Unit Selection', () => {
+        test('selects appropriate metric units based on volume', () => {
+            const { formatLiquidMeasurement } = require('./content.js');
+
+            const cases = [
+                { liters: 0, expected: '0 ml' },
+                { liters: 0.0005, expected: '0.5 ml' },
+                { liters: 0.005, expected: '5 ml' },
+                { liters: 0.5, expected: '500 ml' },
+                { liters: 1, expected: '1 L' },
+                { liters: 1.5, expected: '1.5 L' },
+                { liters: 2, expected: '2 L' },
+            ];
+
+            cases.forEach(({ liters, expected }) => {
+                expect(formatLiquidMeasurement(liters)).toBe(expected);
+            });
+        });
+    });
+
+    describe('Plural Forms', () => {
+        test('handles plural forms correctly', () => {
+            const pluralCases = [
+                { input: '2.5 cups of flour', expected: '2.5 cups (591.47 ml) of flour' },
+                { input: '1.5 gallons of water', expected: '1.5 gallons (5.68 L) of water' },
+                { input: '2.5 quarts of milk', expected: '2.5 quarts (2.37 L) of milk' },
+                { input: '1.5 pints of cream', expected: '1.5 pints (709.76 ml) of cream' },
+                {
+                    input: '2.5 fluid ounces of extract',
+                    expected: '2.5 fluid ounces (73.93 ml) of extract',
+                },
+                { input: '1.5 tablespoons of oil', expected: '1.5 tablespoons (22.18 ml) of oil' },
+                {
+                    input: '2.5 teaspoons of vanilla',
+                    expected: '2.5 teaspoons (12.32 ml) of vanilla',
+                },
+                { input: '1 3/4 cups of sugar', expected: '1 3/4 cups (414.03 ml) of sugar' },
+                { input: '2 1/2 gallons of water', expected: '2 1/2 gallons (9.46 L) of water' },
+                { input: '1 1/4 quarts of milk', expected: '1 1/4 quarts (1.18 L) of milk' },
+                { input: '2 3/4 pints of cream', expected: '2 3/4 pints (1.3 L) of cream' },
+                {
+                    input: '1 1/2 fluid ounces of extract',
+                    expected: '1 1/2 fluid ounces (44.36 ml) of extract',
+                },
+                {
+                    input: '2 1/4 tablespoons of oil',
+                    expected: '2 1/4 tablespoons (33.27 ml) of oil',
+                },
+                {
+                    input: '1 3/4 teaspoons of vanilla',
+                    expected: '1 3/4 teaspoons (8.63 ml) of vanilla',
+                },
+            ];
+
+            pluralCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles mixed plural and singular forms', () => {
+            const mixedCases = [
+                {
+                    input: '1 cup and 0.5 cups',
+                    expected: '1 cup (236.59 ml) and 0.5 cups (118.29 ml)',
+                },
+                {
+                    input: '1 gallon and 1.5 gallons',
+                    expected: '1 gallon (3.79 L) and 1.5 gallons (5.68 L)',
+                },
+                {
+                    input: '1 quart and 2.5 quarts',
+                    expected: '1 quart (946.35 ml) and 2.5 quarts (2.37 L)',
+                },
+                {
+                    input: '1 tablespoon and 1.5 tablespoons',
+                    expected: '1 tablespoon (14.79 ml) and 1.5 tablespoons (22.18 ml)',
+                },
+                {
+                    input: '1 cup and 1 3/4 cups',
+                    expected: '1 cup (236.59 ml) and 1 3/4 cups (414.03 ml)',
+                },
+                {
+                    input: '1 gallon and 2 1/2 gallons',
+                    expected: '1 gallon (3.79 L) and 2 1/2 gallons (9.46 L)',
+                },
+                {
+                    input: '1 quart and 1 1/4 quarts',
+                    expected: '1 quart (946.35 ml) and 1 1/4 quarts (1.18 L)',
+                },
+                {
+                    input: '1 tablespoon and 2 1/4 tablespoons',
+                    expected: '1 tablespoon (14.79 ml) and 2 1/4 tablespoons (33.27 ml)',
+                },
+            ];
+
+            mixedCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles decimal numbers without trailing zeros', () => {
+            const decimalCases = [
+                { input: '2.0 cups', expected: '2.0 cups (473.18 ml)' },
+                { input: '1.0 gallon', expected: '1.0 gallon (3.79 L)' },
+                { input: '3.00 quarts', expected: '3.00 quarts (2.84 L)' },
+                { input: '2 1/2 cups', expected: '2 1/2 cups (591.47 ml)' },
+                { input: '1 1/4 gallon', expected: '1 1/4 gallon (4.73 L)' },
+                { input: '3 3/4 quarts', expected: '3 3/4 quarts (3.55 L)' },
+            ];
+
+            decimalCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+});
