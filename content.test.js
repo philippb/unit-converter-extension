@@ -737,4 +737,156 @@ describe('Liquid Conversion Tests', () => {
             });
         });
     });
+
+    describe('Unit Variations and Abbreviations', () => {
+        test('handles fluid ounce variations', () => {
+            const variations = [
+                { input: '1 fluid ounce', expected: '1 fluid ounce (29.57 ml)' },
+                { input: '2 fluid ounces', expected: '2 fluid ounces (59.15 ml)' },
+                { input: '1 fl oz', expected: '1 fl oz (29.57 ml)' },
+                { input: '2 fl.oz', expected: '2 fl.oz (59.15 ml)' },
+                { input: '1.5 fl ozs', expected: '1.5 fl ozs (44.36 ml)' },
+            ];
+
+            variations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles tablespoon variations', () => {
+            const variations = [
+                { input: '1 tablespoon', expected: '1 tablespoon (14.79 ml)' },
+                { input: '2 tablespoons', expected: '2 tablespoons (29.57 ml)' },
+                { input: '1 tbsp', expected: '1 tbsp (14.79 ml)' },
+                { input: '2 tbsps', expected: '2 tbsps (29.57 ml)' },
+                { input: '1 tbs', expected: '1 tbs (14.79 ml)' },
+                { input: '2 tbss', expected: '2 tbss (29.57 ml)' },
+                { input: '1 tb', expected: '1 tb (14.79 ml)' },
+                { input: '2 tbs', expected: '2 tbs (29.57 ml)' },
+            ];
+
+            variations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles teaspoon variations', () => {
+            const variations = [
+                { input: '1 teaspoon', expected: '1 teaspoon (4.93 ml)' },
+                { input: '2 teaspoons', expected: '2 teaspoons (9.86 ml)' },
+                { input: '1 tsp', expected: '1 tsp (4.93 ml)' },
+                { input: '2 tsps', expected: '2 tsps (9.86 ml)' },
+                { input: '1 ts', expected: '1 ts (4.93 ml)' },
+                { input: '2 tss', expected: '2 tss (9.86 ml)' },
+            ];
+
+            variations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles cup variations', () => {
+            const variations = [
+                { input: '1 cup', expected: '1 cup (236.59 ml)' },
+                { input: '2 cups', expected: '2 cups (0.47 L)' },
+                { input: '1 c', expected: '1 c (236.59 ml)' },
+                { input: '2 cs', expected: '2 cs (0.47 L)' },
+            ];
+
+            variations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles pint variations', () => {
+            const variations = [
+                { input: '1 pint', expected: '1 pint (0.47 L)' },
+                { input: '2 pints', expected: '2 pints (0.95 L)' },
+                { input: '1 pt', expected: '1 pt (0.47 L)' },
+                { input: '2 pts', expected: '2 pts (0.95 L)' },
+            ];
+
+            variations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles quart variations', () => {
+            const variations = [
+                { input: '1 quart', expected: '1 quart (0.95 L)' },
+                { input: '2 quarts', expected: '2 quarts (1.89 L)' },
+                { input: '1 qt', expected: '1 qt (0.95 L)' },
+                { input: '2 qts', expected: '2 qts (1.89 L)' },
+            ];
+
+            variations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles gallon variations', () => {
+            const variations = [
+                { input: '1 gallon', expected: '1 gallon (3.79 L)' },
+                { input: '2 gallons', expected: '2 gallons (7.57 L)' },
+                { input: '1 gal', expected: '1 gal (3.79 L)' },
+                { input: '2 gals', expected: '2 gals (7.57 L)' },
+            ];
+
+            variations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles mixed unit variations in the same text', () => {
+            const mixedCases = [
+                {
+                    input: '1 tbsp and 2 tsps',
+                    expected: '1 tbsp (14.79 ml) and 2 tsps (9.86 ml)',
+                },
+                {
+                    input: '1 fl.oz, 2 tbs, and 3 ts',
+                    expected: '1 fl.oz (29.57 ml), 2 tbs (29.57 ml), and 3 ts (14.79 ml)',
+                },
+                {
+                    input: '1 gal, 2 qts, 3 pts',
+                    expected: '1 gal (3.79 L), 2 qts (1.89 L), 3 pts (1.42 L)',
+                },
+            ];
+
+            mixedCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles case variations', () => {
+            const caseVariations = [
+                { input: '1 TBSP', expected: '1 TBSP (14.79 ml)' },
+                { input: '2 Fl.Oz', expected: '2 Fl.Oz (59.15 ml)' },
+                { input: '1 Gal', expected: '1 Gal (3.79 L)' },
+                { input: '2 TSP', expected: '2 TSP (9.86 ml)' },
+            ];
+
+            caseVariations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
 });

@@ -288,7 +288,7 @@ function formatLiquidMeasurement(liters) {
 function convertLiquidText(text) {
     let converted = text;
 
-    // Convert gallons - updated regex to better handle decimals
+    // Convert gallons
     converted = converted.replace(
         /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:gallon|gallons|gal)s?\b(?!\s*(?:\(.*\)))/gi,
         function (match, whole, numerator, denominator) {
@@ -299,7 +299,7 @@ function convertLiquidText(text) {
         }
     );
 
-    // Convert quarts - updated regex to better handle decimals
+    // Convert quarts
     converted = converted.replace(
         /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:quart|quarts|qt)s?\b(?!\s*(?:\(.*\)))/gi,
         function (match, whole, numerator, denominator) {
@@ -310,7 +310,7 @@ function convertLiquidText(text) {
         }
     );
 
-    // Convert pints - updated regex to better handle decimals
+    // Convert pints
     converted = converted.replace(
         /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:pint|pints|pt)s?\b(?!\s*(?:\(.*\)))/gi,
         function (match, whole, numerator, denominator) {
@@ -321,7 +321,7 @@ function convertLiquidText(text) {
         }
     );
 
-    // Convert cups - updated regex to better handle decimals
+    // Convert cups
     converted = converted.replace(
         /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:cup|cups|c)s?\b(?!\s*(?:\(.*\)))/gi,
         function (match, whole, numerator, denominator) {
@@ -332,9 +332,9 @@ function convertLiquidText(text) {
         }
     );
 
-    // Convert fluid ounces - updated regex to better handle decimals
+    // Convert fluid ounces
     converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:fluid\s+ounce|fluid\s+ounces|fl\s*oz)s?\b(?!\s*(?:\(.*\)))/gi,
+        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:fluid\s+ounce|fluid\s+ounces|fl\.?\s*oz)s?\b(?!\s*(?:\(.*\)))/gi,
         function (match, whole, numerator, denominator) {
             if (!whole && !numerator) return match;
             const floz = parseLiquidFraction(whole, numerator, denominator);
@@ -343,9 +343,9 @@ function convertLiquidText(text) {
         }
     );
 
-    // Convert tablespoons - updated regex to better handle decimals
+    // Convert tablespoons
     converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:tablespoon|tablespoons|tbsp)s?\b(?!\s*(?:\(.*\)))/gi,
+        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:tablespoon|tablespoons|tbsp|tbs|tb)s?\b(?!\s*(?:\(.*\)))/gi,
         function (match, whole, numerator, denominator) {
             if (!whole && !numerator) return match;
             const tbsp = parseLiquidFraction(whole, numerator, denominator);
@@ -354,9 +354,9 @@ function convertLiquidText(text) {
         }
     );
 
-    // Convert teaspoons - updated regex to better handle decimals
+    // Convert teaspoons
     converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:teaspoon|teaspoons|tsp)s?\b(?!\s*(?:\(.*\)))/gi,
+        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:teaspoon|teaspoons|tsp|ts)s?\b(?!\s*(?:\(.*\)))/gi,
         function (match, whole, numerator, denominator) {
             if (!whole && !numerator) return match;
             const tsp = parseLiquidFraction(whole, numerator, denominator);
