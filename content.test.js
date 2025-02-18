@@ -173,7 +173,7 @@ describe('Unit Conversion Tests', () => {
 
     describe('Metric Unit Selection', () => {
         test('selects appropriate metric units based on size', () => {
-            const { formatMetricMeasurement } = require('./content.js');
+            const { formatLengthMeasurement } = require('./content.js');
 
             const cases = [
                 { meters: 0, expected: '0 cm' },
@@ -186,7 +186,7 @@ describe('Unit Conversion Tests', () => {
             ];
 
             cases.forEach(({ meters, expected }) => {
-                expect(formatMetricMeasurement(meters)).toBe(expected);
+                expect(formatLengthMeasurement(meters)).toBe(expected);
             });
         });
 
