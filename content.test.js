@@ -294,4 +294,80 @@ describe('Editable Context Detection', () => {
             expect(isEditableContext(span)).toBe(false);
         });
     });
+
+    describe('Contenteditable Elements', () => {
+        test('detects contenteditable elements', () => {
+            const div = document.createElement('div');
+            div.setAttribute('contenteditable', 'true');
+            expect(isEditableContext(div)).toBe(true);
+        });
+
+        test('detects text nodes in contenteditable elements', () => {
+            const div = document.createElement('div');
+            div.setAttribute('contenteditable', 'true');
+            const textNode = document.createTextNode('Sample text');
+            div.appendChild(textNode);
+            expect(isEditableContext(textNode)).toBe(true);
+        });
+
+        test('detects nested elements in contenteditable elements', () => {
+            const outer = document.createElement('div');
+            outer.setAttribute('contenteditable', 'true');
+            const inner = document.createElement('span');
+            outer.appendChild(inner);
+            expect(isEditableContext(inner)).toBe(true);
+        });
+
+        test('handles contenteditable="false" correctly', () => {
+            const div = document.createElement('div');
+            div.setAttribute('contenteditable', 'false');
+            expect(isEditableContext(div)).toBe(false);
+        });
+
+        test('handles markdown editor pre elements correctly', () => {
+            // Create the pre element with markdown editor structure
+            const pre = document.createElement('pre');
+            pre.className = 'editor__inner markdown-highlighting';
+            pre.setAttribute('contenteditable', 'true');
+            pre.setAttribute('tabindex', '0');
+            pre.style.padding = '10px 25px 464px';
+
+            // Create the inner structure
+            const section = document.createElement('div');
+            section.className = 'cledit-section';
+
+            // Create measurement span
+            const measureSpan = document.createElement('span');
+            measureSpan.className = 'token p';
+            measureSpan.textContent = '12 inch';
+
+            // Create line breaks with their containers
+            const lineBreak1 = document.createElement('span');
+            lineBreak1.className = 'lf';
+            const hiddenLf1 = document.createElement('span');
+            hiddenLf1.className = 'hd-lf';
+            hiddenLf1.style.display = 'none';
+            hiddenLf1.textContent = '\n';
+            lineBreak1.appendChild(hiddenLf1);
+
+            const lineBreak2 = lineBreak1.cloneNode(true);
+
+            // Assemble the structure
+            section.appendChild(measureSpan);
+            section.appendChild(lineBreak1);
+            section.appendChild(lineBreak2);
+            pre.appendChild(section);
+            pre.appendChild(document.createElement('div'));
+
+            document.body.appendChild(pre);
+
+            // Test that the element is recognized as editable
+            expect(isEditableContext(pre)).toBe(true);
+            expect(isEditableContext(measureSpan)).toBe(true);
+
+            // Test that measurement conversion is skipped in this context
+            processNode(pre);
+            expect(measureSpan.textContent).toBe('12 inch');
+        });
+    });
 });

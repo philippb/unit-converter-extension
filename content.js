@@ -97,19 +97,19 @@ function convertText(text) {
 }
 
 function isEditableContext(node) {
-    // For text nodes, start checking from their parent element
-    const startNode = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-
-    // Check if node is inside an editable context
-    let current = startNode;
+    // Walk up the DOM tree to find if we're in an editable context
+    let current = node;
     while (current) {
-        // Check for input and textarea elements
+        // Check for form elements
         if (current.tagName === 'INPUT' || current.tagName === 'TEXTAREA') {
             return true;
         }
-        current = current.parentElement;
+        // Check for contenteditable elements
+        if (current.getAttribute && current.getAttribute('contenteditable') === 'true') {
+            return true;
+        }
+        current = current.parentNode;
     }
-
     return false;
 }
 
