@@ -1,0 +1,66 @@
+title: 'American Units for the Rest of Us'
+short_description: "Instantly convert those puzzling American units to what the rest of the world uses. Whether you're moving to the US or an American wanting to join the metric world - we've got your unit conversions covered! 🌍➡️🇺🇸"
+
+detailed_description: |
+    Are you one of the 95% of Earth's population wondering why America uses different units for... well, everything? Or perhaps you're an American curious about how the rest of the world measures stuff? 
+
+    "Is 75°F a beach day or should I grab a jacket? 🤔"
+    "Wait, how many kilometers is 5 miles? 🏃‍♂️"
+    "3 cups of flour... but which cup? My coffee cup? 😅"
+
+    Fear not, whether you're a metric system enthusiast or an American ready to peek over the unit divide! This extension automatically converts those mysterious American measurements into what the rest of the world uses, helping everyone understand each other better.
+
+    What we convert:
+    • Temperature (Fahrenheit ↔️ Celsius)
+    • Distance (Miles ↔️ Kilometers)
+    • Weight (Pounds ↔️ Kilograms)
+    • Volume (Cups, Gallons ↔️ Milliliters, Liters)
+    • Length (Inches, Feet ↔️ Centimeters, Meters)
+
+    How it works:
+    Just browse the web normally! When we spot American units, we'll show you the conversion right next to it. No clicks needed, no calculators required, no math anxiety necessary. It's like having a bilingual friend who translates American unites into Metric units!
+
+    Examples:
+    • "The weather will be 85°F today" → (29°C)
+    • "This recipe needs 2 cups of milk" → (473ml)
+    • "Please maintain 6 feet distance" → (1.8m)
+
+    Perfect for:
+    • International folks moving to or visiting the US
+    • Americans who want to understand the rest of the world
+    • People working with international companies
+    • Anyone who's tired of googling conversions 50 times a day
+    • Scientists who facepalm every time they see imperial units
+    • Americans who want to secretly learn metric without anyone knowing 🤫
+
+    Whether you're trying to figure out if you need a sweater in Fahrenheit land, or you're an American wondering why your international friends get excited about 21°C beach days - we've got your back! Join the revolution of making measurements less mysterious, one conversion at a time! 🌡️📏⚖️
+
+# Image placeholders
+images:
+    icon:
+        path: 'src/icons/icon128.png'
+        alt: 'Extension icon showing unit conversion symbol'
+
+    screenshots:
+        - path: 'store-screenshots/screenshot1.png'
+          alt: 'Screenshot showing temperature conversion on a weather website'
+        - path: 'store-screenshots/screenshot2.png'
+          alt: 'Screenshot showing recipe measurements conversion'
+        - path: 'store-screenshots/screenshot3.png'
+          alt: 'Screenshot showing distance conversion on a maps website'
+
+# Store categories and metadata
+category: 'Productivity'
+languages:
+    - en
+
+# Keywords for better discoverability
+keywords:
+    - unit converter
+    - metric system
+    - imperial to metric
+    - temperature converter
+    - measurement converter
+    - international
+    - fahrenheit celsius
+    - american units
