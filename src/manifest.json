@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Imperial to Metric",
     "version": "1.0",
-    "description": "Automatically converts imperial measurements to metric in web pages",
+    "description": "Convert American units to metric with ease. Perfect for int users adjusting to US measurements, or Americans exploring metric",
     "permissions": ["scripting"],
     "host_permissions": ["<all_urls>"],
     "icons": {
