@@ -284,86 +284,63 @@ function formatLiquidMeasurement(liters) {
     }
 }
 
-// Update the text conversion function to use the new liter-based functions
+// Unit definitions with their variations
+const LIQUID_UNITS = {
+    GALLON: {
+        names: ['gallon', 'gallons', 'gal'],
+        convert: (value) => convertLiquidToL(value),
+    },
+    QUART: {
+        names: ['quart', 'quarts', 'qt'],
+        convert: (value) => convertLiquidToL(0, value),
+    },
+    PINT: {
+        names: ['pint', 'pints', 'pt'],
+        convert: (value) => convertLiquidToL(0, 0, value),
+    },
+    CUP: {
+        names: ['cup', 'cups', 'c'],
+        convert: (value) => convertLiquidToL(0, 0, 0, value),
+    },
+    FLUID_OUNCE: {
+        names: ['fluid\\s+ounce', 'fluid\\s+ounces', 'fl\\.?\\s*oz'],
+        convert: (value) => convertLiquidToL(0, 0, 0, 0, value),
+    },
+    TABLESPOON: {
+        names: ['tablespoon', 'tablespoons', 'tbsp', 'tbs', 'tb'],
+        convert: (value) => convertLiquidToL(0, 0, 0, 0, 0, value),
+    },
+    TEASPOON: {
+        names: ['teaspoon', 'teaspoons', 'tsp', 'ts'],
+        convert: (value) => convertLiquidToL(0, 0, 0, 0, 0, 0, value),
+    },
+};
+
+// Build the measurement regex pattern
+function buildMeasurementRegex(unit) {
+    const unitPattern = unit.names.join('|');
+    return new RegExp(
+        `\\b(\\d+(?:\\.\\d+)?(?:\\s+)?)?([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])?(?:(\\d+)\\s*\\/\\s*(\\d+))?\\s*(?:${unitPattern})s?\\b(?!\\s*(?:\\(.*\\)))`,
+        'gi'
+    );
+}
+
+// Update the text conversion function to use the new regex builder
 function convertLiquidText(text) {
     let converted = text;
 
-    // Convert gallons
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:gallon|gallons|gal)s?\b(?!\s*(?:\(.*\)))/gi,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const gallons = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(gallons);
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
-
-    // Convert quarts
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:quart|quarts|qt)s?\b(?!\s*(?:\(.*\)))/gi,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const quarts = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(0, quarts);
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
-
-    // Convert pints
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:pint|pints|pt)s?\b(?!\s*(?:\(.*\)))/gi,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const pints = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(0, 0, pints);
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
-
-    // Convert cups
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:cup|cups|c)s?\b(?!\s*(?:\(.*\)))/gi,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const cups = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(0, 0, 0, cups);
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
-
-    // Convert fluid ounces
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:fluid\s+ounce|fluid\s+ounces|fl\.?\s*oz)s?\b(?!\s*(?:\(.*\)))/gi,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const floz = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(0, 0, 0, 0, floz);
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
-
-    // Convert tablespoons
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:tablespoon|tablespoons|tbsp|tbs|tb)s?\b(?!\s*(?:\(.*\)))/gi,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const tbsp = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(0, 0, 0, 0, 0, tbsp);
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
-
-    // Convert teaspoons
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:teaspoon|teaspoons|tsp|ts)s?\b(?!\s*(?:\(.*\)))/gi,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const tsp = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(0, 0, 0, 0, 0, 0, tsp);
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
+    // Process each unit type
+    Object.values(LIQUID_UNITS).forEach((unit) => {
+        converted = converted.replace(
+            buildMeasurementRegex(unit),
+            function (match, whole, unicodeFraction, numerator, denominator) {
+                if (!whole && !unicodeFraction && !numerator) return match;
+                const value = parseLiquidFraction(whole, numerator, denominator, unicodeFraction);
+                const liters = unit.convert(value);
+                return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+            }
+        );
+    });
 
     return converted;
 }
@@ -384,4 +361,6 @@ if (typeof exports !== 'undefined') {
     exports.formatWeightMeasurement = formatWeightMeasurement;
     exports.formatLiquidMeasurement = formatLiquidMeasurement;
     exports.isEditableContext = isEditableContext;
+    exports.buildMeasurementRegex = buildMeasurementRegex;
+    exports.LIQUID_UNITS = LIQUID_UNITS;
 }
