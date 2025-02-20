@@ -945,7 +945,7 @@ describe('Measurement Regex Builder Tests', () => {
             testCases.forEach(({ unit, input }) => {
                 const regex = buildMeasurementRegex(unit);
                 const match = input.match(regex);
-                expect(match?.[0]).not.toContain('(');
+                expect(match).toBeNull();
             });
         });
 
@@ -1000,6 +1000,55 @@ describe('Measurement Regex Builder Tests', () => {
                 const regex = buildMeasurementRegex(unit);
                 expect(input.match(regex)[0]).toBe(match);
             });
+        });
+    });
+});
+
+describe('Additional Edge Cases', () => {
+    test('handles case variations', () => {
+        const cases = [
+            { input: '5 INCHES wide', expected: '5 INCHES (12.7 cm) wide' },
+            { input: '2 Feet tall', expected: '2 Feet (60.96 cm) tall' },
+            { input: '3 Gallons', expected: '3 Gallons (11.36 L)' }
+        ];
+
+        cases.forEach(({ input, expected }) => {
+            document.body.textContent = input;
+            processNode(document.body);
+            expect(document.body.textContent).toBe(expected);
+        });
+    });
+
+    test('handles measurements with special characters', () => {
+        const cases = [
+            { input: '5-inch pipe', expected: '5-inch (12.7 cm) pipe' },
+            { input: '2′ (feet symbol)', expected: '2′ (0.61 m) (feet symbol)' },
+            { input: '3″ (inches symbol)', expected: '3″ (7.62 cm) (inches symbol)' }
+        ];
+
+        cases.forEach(({ input, expected }) => {
+            document.body.textContent = input;
+            processNode(document.body);
+            expect(document.body.textContent).toBe(expected);
+        });
+    });
+
+    test('handles multiple measurements in complex text', () => {
+        const cases = [
+            {
+                input: 'Mix 2 cups flour with 1/2 tsp salt and 3 tbsp sugar, then add 8 fl oz milk',
+                expected: 'Mix 2 cups (0.47 L) flour with 1/2 tsp (2.46 ml) salt and 3 tbsp (44.36 ml) sugar, then add 8 fl oz (236.59 ml) milk'
+            },
+            {
+                input: 'A 6ft 2in person weighing 180 lbs carrying a 2-gallon jug',
+                expected: 'A 6ft 2in (1.88 m) person weighing 180 lbs (81.65 kg) carrying a 2-gallon (7.57 L) jug'
+            }
+        ];
+
+        cases.forEach(({ input, expected }) => {
+            document.body.textContent = input;
+            processNode(document.body);
+            expect(document.body.textContent).toBe(expected);
         });
     });
 });
