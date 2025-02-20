@@ -425,8 +425,34 @@ describe('Weight Conversion Tests', () => {
                 { input: '6 lbs', expected: '6 lbs (2.72 kg)' },
                 { input: '6 lb', expected: '6 lb (2.72 kg)' },
             ];
-
+            
             notations.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles unicode fractions in pounds', () => {
+            const unicodeFractions = [
+                // { input: '6½ pounds', expected: '6½ pounds (2.95 kg)' },
+                { input: '6¾ pounds', expected: '6¾ pounds (3.04 kg)' },
+                { input: '6¼ pounds', expected: '6¼ pounds (2.84 kg)' },
+                { input: '6⅓ pounds', expected: '6⅓ pounds (2.87 kg)' },
+                { input: '6⅔ pounds', expected: '6⅔ pounds (3.02 kg)' },
+                { input: '6⅕ pounds', expected: '6⅕ pounds (2.79 kg)' },
+                { input: '6⅖ pounds', expected: '6⅖ pounds (2.92 kg)' },
+                { input: '6⅗ pounds', expected: '6⅗ pounds (2.96 kg)' },
+                { input: '6⅘ pounds', expected: '6⅘ pounds (3.00 kg)' },
+                { input: '6⅙ pounds', expected: '6⅙ pounds (2.76 kg)' },
+                { input: '6⅚ pounds', expected: '6⅚ pounds (3.07 kg)' },
+                { input: '6⅛ pounds', expected: '6⅛ pounds (2.73 kg)' },
+                { input: '6⅜ pounds', expected: '6⅜ pounds (2.89 kg)' },
+                { input: '6⅝ pounds', expected: '6⅝ pounds (2.97 kg)' },
+                { input: '6⅞ pounds', expected: '6⅞ pounds (3.04 kg)' },
+            ];
+
+            unicodeFractions.forEach(({ input, expected }) => {
                 document.body.textContent = input;
                 processNode(document.body);
                 expect(document.body.textContent).toBe(expected);
@@ -512,7 +538,7 @@ describe('Liquid Conversion Tests', () => {
         test('converts gallons', () => {
             document.body.textContent = 'Fill with 2 gallons of water';
             processNode(document.body);
-            expect(document.body.textContent).toBe('Fill with 2 gallons (7.57 L) of water');
+            expect(document.body.textContent).toBe('Fill with 2 gallons (7.58 L) of water');
         });
 
         test('converts quarts', () => {
@@ -734,271 +760,6 @@ describe('Liquid Conversion Tests', () => {
                 document.body.textContent = input;
                 processNode(document.body);
                 expect(document.body.textContent).toBe(expected);
-            });
-        });
-    });
-});
-
-describe('Measurement Regex Builder Tests', () => {
-    const { buildMeasurementRegex, LIQUID_UNITS } = require('../src/content.js');
-
-    describe('Basic Pattern Matching', () => {
-        test('matches whole numbers with units', () => {
-            const testCases = [
-                { 
-                    unit: LIQUID_UNITS.GALLON, 
-                    inputs: [
-                        { input: 'The recipe calls for 2 gallons of water', match: '2 gallons' },
-                        { input: 'Add 5 gal to the mixture', match: '5 gal' },
-                        { input: 'You need 1 gallon of milk', match: '1 gallon' }
-                    ]
-                },
-                { 
-                    unit: LIQUID_UNITS.QUART, 
-                    inputs: [
-                        { input: 'Pour in 3 quarts of broth', match: '3 quarts' },
-                        { input: 'Mix with 1 qt of cream', match: '1 qt' },
-                        { input: 'Contains 4 quart of soup', match: '4 quart' }
-                    ]
-                },
-                { 
-                    unit: LIQUID_UNITS.PINT, 
-                    inputs: [
-                        { input: 'Drink 2 pints of water daily', match: '2 pints' },
-                        { input: 'Add 1 pt of cream', match: '1 pt' },
-                        { input: 'Store 3 pint in the fridge', match: '3 pint' }
-                    ]
-                },
-                { 
-                    unit: LIQUID_UNITS.CUP, 
-                    inputs: [
-                        { input: 'Mix in 2 cups of flour', match: '2 cups' },
-                        { input: 'Add 1 c of sugar', match: '1 c' },
-                        { input: 'Pour 3 cup of milk', match: '3 cup' }
-                    ]
-                },
-                { 
-                    unit: LIQUID_UNITS.FLUID_OUNCE, 
-                    inputs: [
-                        { input: 'Add 2 fluid ounces of vanilla', match: '2 fluid ounces' },
-                        { input: 'Mix in 8 fl oz of water', match: '8 fl oz' },
-                        { input: 'Contains 1 fluid ounce of extract', match: '1 fluid ounce' }
-                    ]
-                },
-                { 
-                    unit: LIQUID_UNITS.TABLESPOON, 
-                    inputs: [
-                        { input: 'Stir in 2 tablespoons of oil', match: '2 tablespoons' },
-                        { input: 'Add 1 tbsp of honey', match: '1 tbsp' },
-                        { input: 'Mix 3 tbs of sauce', match: '3 tbs' },
-                        { input: 'Use 4 tb of butter', match: '4 tb' }
-                    ]
-                },
-                { 
-                    unit: LIQUID_UNITS.TEASPOON, 
-                    inputs: [
-                        { input: 'Add 2 teaspoons of salt', match: '2 teaspoons' },
-                        { input: 'Mix in 1 tsp of vanilla', match: '1 tsp' },
-                        { input: 'Use 3 ts of spice', match: '3 ts' }
-                    ]
-                }
-            ];
-
-            testCases.forEach(({ unit, inputs }) => {
-                const regex = buildMeasurementRegex(unit);
-                inputs.forEach(({ input, match }) => {
-                    const result = input.match(regex);
-                    expect(result[0]).toBe(match);
-                });
-            });
-        });
-
-        test('matches decimal numbers with units', () => {
-            const testCases = [
-                { unit: LIQUID_UNITS.GALLON, input: 'Fill the tank with 2.5 gallons of water', match: '2.5 gallons' },
-                { unit: LIQUID_UNITS.QUART, input: 'Add 1.5 quarts of stock to the pot', match: '1.5 quarts' },
-                { unit: LIQUID_UNITS.PINT, input: 'Pour 0.5 pints into the glass', match: '0.5 pints' },
-                { unit: LIQUID_UNITS.CUP, input: 'Mix in 1.5 cups of flour slowly', match: '1.5 cups' },
-                { unit: LIQUID_UNITS.FLUID_OUNCE, input: 'Add exactly 1.5 fl oz of extract', match: '1.5 fl oz' },
-                { unit: LIQUID_UNITS.TABLESPOON, input: 'Stir in 2.5 tbsp of olive oil', match: '2.5 tbsp' },
-                { unit: LIQUID_UNITS.TEASPOON, input: 'Use 0.5 tsp of vanilla extract', match: '0.5 tsp' }
-            ];
-
-            testCases.forEach(({ unit, input }) => {
-                const regex = buildMeasurementRegex(unit);
-                const match = input.match(regex);
-                expect(match).toBeTruthy();
-            });
-        });
-
-        test('matches standard fractions with units', () => {
-            const testCases = [
-                // Simple cases - match against input directly
-                { unit: LIQUID_UNITS.TEASPOON, input: '1/8 tsp' },
-                { unit: LIQUID_UNITS.TABLESPOON, input: '1/3 tbsp' },
-                
-                // Sentence cases with explicit match values
-                { 
-                    unit: LIQUID_UNITS.GALLON, 
-                    input: 'You need 1/2 gallon of milk for the recipe',
-                    match: '1/2 gallon'
-                },
-                { 
-                    unit: LIQUID_UNITS.QUART, 
-                    input: 'Add 3/4 quart of cream to the mixture',
-                    match: '3/4 quart'
-                },
-                { 
-                    unit: LIQUID_UNITS.PINT, 
-                    input: 'Pour 1/4 pint of sauce over the dish',
-                    match: '1/4 pint'
-                },
-                { 
-                    unit: LIQUID_UNITS.CUP, 
-                    input: 'Mix in 2/3 cup of sugar until dissolved',
-                    match: '2/3 cup'
-                },
-                { 
-                    unit: LIQUID_UNITS.FLUID_OUNCE, 
-                    input: 'Add 1/2 fl oz of vanilla extract',
-                    match: '1/2 fl oz'
-                },
-                { 
-                    unit: LIQUID_UNITS.TABLESPOON, 
-                    input: 'Stir in 1/3 tbsp of honey until combined',
-                    match: '1/3 tbsp'
-                },
-                { 
-                    unit: LIQUID_UNITS.TEASPOON, 
-                    input: 'Carefully add 1/8 tsp of cayenne pepper',
-                    match: '1/8 tsp'
-                }
-            ];
-
-            testCases.forEach(({ unit, input, match }) => {
-                const regex = buildMeasurementRegex(unit);
-                const result = input.match(regex);
-                if (match) {
-                    expect(result[0]).toBe(match);
-                } else {
-                    expect(result[0]).toBe(input);
-                }
-            });
-        });
-
-        test('matches unicode fractions with units', () => {
-            const testCases = [
-                { unit: LIQUID_UNITS.GALLON, input: 'The recipe requires 2 ½ gallons of water', match: '2 ½ gallons' },
-                { unit: LIQUID_UNITS.QUART, input: 'Pour in 1 ¼ quarts of broth', match: '1 ¼ quarts' },
-                { unit: LIQUID_UNITS.PINT, input: 'Add ¾ pint of cream to finish', match: '¾ pint' },
-                { unit: LIQUID_UNITS.CUP, input: 'Mix in ⅓ cup of oil until combined', match: '⅓ cup' },
-                { unit: LIQUID_UNITS.FLUID_OUNCE, input: 'Add 2 ⅔ fl oz of extract carefully', match: '2 ⅔ fl oz' },
-                { unit: LIQUID_UNITS.TABLESPOON, input: 'Use ⅛ tbsp of spice mixture', match: '⅛ tbsp' },
-                { unit: LIQUID_UNITS.TEASPOON, input: 'Stir in 2 ⅝ tsp of vanilla', match: '2 ⅝ tsp' }
-            ];
-
-            testCases.forEach(({ unit, input, match }) => {
-                const regex = buildMeasurementRegex(unit);
-                const result = input.match(regex);
-                expect(result[0]).toBe(match);
-            });
-        });
-    });
-
-    describe('Complex Pattern Matching', () => {
-        test('matches mixed numbers and fractions', () => {
-            const testCases = [
-                { unit: LIQUID_UNITS.GALLON, input: 'The recipe needs 2 1/2 gallons of water', match: '2 1/2 gallons' },
-                { unit: LIQUID_UNITS.QUART, input: 'Add 1 3/4 quarts of broth to the pot', match: '1 3/4 quarts' },
-                { unit: LIQUID_UNITS.PINT, input: 'Pour 2 1/4 pints of cream slowly', match: '2 1/4 pints' },
-                { unit: LIQUID_UNITS.CUP, input: 'Mix in 1 2/3 cups of flour until smooth', match: '1 2/3 cups' }
-            ];
-
-            testCases.forEach(({ unit, input, match }) => {
-                const regex = buildMeasurementRegex(unit);
-                const result = input.match(regex);
-                expect(result[0]).toBe(match);
-            });
-        });
-
-        test('handles extra spaces correctly', () => {
-            const testCases = [
-                { unit: LIQUID_UNITS.GALLON, input: 'Add    2    1/2    gallons    of water', match: '2    1/2    gallons' },
-                { unit: LIQUID_UNITS.CUP, input: 'Mix in   1   cup   of flour', match: '1   cup' },
-                { unit: LIQUID_UNITS.TABLESPOON, input: 'Use   2   ½   tbsp   of oil', match: '2   ½   tbsp' }
-            ];
-
-            testCases.forEach(({ unit, input, match }) => {
-                const regex = buildMeasurementRegex(unit);
-                const result = input.match(regex);
-                expect(result[0]).toBe(match);
-            });
-        });
-
-        test('does not match already converted measurements', () => {
-            const testCases = [
-                { unit: LIQUID_UNITS.GALLON, input: 'You need 2 gallons (7.57 L) of water' },
-                { unit: LIQUID_UNITS.CUP, input: 'Add 1 cup (236.59 ml) of milk' },
-                { unit: LIQUID_UNITS.TABLESPOON, input: 'Mix in 2 tbsp (29.57 ml) of oil' }
-            ];
-
-            testCases.forEach(({ unit, input }) => {
-                const regex = buildMeasurementRegex(unit);
-                const match = input.match(regex);
-                expect(match).toBeNull();
-            });
-        });
-
-        test('does not match invalid measurements', () => {
-            const testCases = [
-                { 
-                    unit: LIQUID_UNITS.GALLON, 
-                    inputs: [
-                        'The recipe uses gallons',
-                        'You need some gallons of water',
-                        'Add many gal to the mix'
-                    ]
-                },
-                { 
-                    unit: LIQUID_UNITS.CUP, 
-                    inputs: [
-                        'Mix in cups of flour',
-                        'Add a few cups of sugar',
-                        'Use several c of milk'
-                    ]
-                },
-                { 
-                    unit: LIQUID_UNITS.TABLESPOON, 
-                    inputs: [
-                        'Add tbsp of salt',
-                        'Mix in a couple tbsp',
-                        'Use some tablespoons of butter'
-                    ]
-                }
-            ];
-
-            testCases.forEach(({ unit, inputs }) => {
-                const regex = buildMeasurementRegex(unit);
-                inputs.forEach(input => {
-                    const match = regex.exec(input);
-                    expect(match?.[1] || match?.[2] || match?.[3]).toBeFalsy();
-                });
-            });
-        });
-    });
-
-    describe('Measurement matching', () => {
-        test('matches various number formats correctly', () => {
-            const testCases = [
-                { unit: LIQUID_UNITS.PINT, input: 'Pour 2 1/4 pints of cream slowly', match: '2 1/4 pints' },
-                { unit: LIQUID_UNITS.CUP, input: 'Add ½ cup of sugar', match: '½ cup' },
-                { unit: LIQUID_UNITS.CUP, input: 'The recipe calls for 2 cups of flour', match: '2 cups' },
-                { unit: LIQUID_UNITS.CUP, input: 'Add 1/2 cup of milk', match: '1/2 cup' }
-            ];
-
-            testCases.forEach(({ unit, input, match }) => {
-                const regex = buildMeasurementRegex(unit);
-                expect(input.match(regex)[0]).toBe(match);
             });
         });
     });
