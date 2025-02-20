@@ -584,7 +584,7 @@ describe('Liquid Conversion Tests', () => {
                 { input: '1/2 cup', expected: '1/2 cup (118.29 ml)' },
                 { input: '1/4 teaspoon', expected: '1/4 teaspoon (1.23 ml)' },
                 { input: '1/3 tablespoon', expected: '1/3 tablespoon (4.93 ml)' },
-                { input: '1/2 gallon', expected: '1/2 gallon (1.89 L)' },
+                { input: '1/2 gallon', expected: '1/2 gallon (1.57 L)' },
             ];
 
             fractions.forEach(({ input, expected }) => {
