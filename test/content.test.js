@@ -1,4 +1,75 @@
-const { processNode, isEditableContext } = require('../src/content.js');
+const { processNode, isEditableContext, convertToDecimal, createRegexFromTemplate } = require('../src/content.js');
+
+describe.only('Basic Regex Tests', () => {
+    test('test core regex', () => {
+        const testString = `
+            5 ounce   <-- match
+            3 lb 2 ⅔ oz  <-- match
+            2.5 lbs (22 mm)  <-- parentheses => not matched; correct
+            Test ½ oz me some <-- no match
+            Test⅔ oz me some <-- match; but wrong. Needs leading space
+            4 lb 4 ⅔ oz <-- match 
+        `;
+
+        const match = testString.match(createRegexFromTemplate('lb|lbs', 'oz|ounce', 'lb|lbs|oz|ounce'));
+        console.log(match);
+        expect(match).toEqual(['5 ounce', '3 lb 2 ⅔ oz', ' ½ oz', '4 lb 4 ⅔ oz']);
+    });
+});
+
+describe.only('convertToDecimal', () => {
+    test('converts mixed numbers to decimal', () => {
+        expect(convertToDecimal('1 1/2')).toBeCloseTo(1.5);
+        expect(convertToDecimal('2 3/4')).toBeCloseTo(2.75);
+        expect(convertToDecimal('3 1/8')).toBeCloseTo(3.125);
+        expect(convertToDecimal('4 5/6')).toBeCloseTo(4.833);
+    });
+
+    test('converts whole numbers to decimal', () => {
+        expect(convertToDecimal('5')).toBeCloseTo(5);
+        expect(convertToDecimal('10')).toBeCloseTo(10);
+    });
+
+    test('converts fractions to decimal', () => {
+        expect(convertToDecimal('1/2')).toBeCloseTo(0.5);
+        expect(convertToDecimal('3/4')).toBeCloseTo(0.75);
+        expect(convertToDecimal('1/8')).toBeCloseTo(0.125);
+        expect(convertToDecimal('5/6')).toBeCloseTo(0.833);
+    });
+
+    test('converts unicode fractions to decimal', () => {
+        expect(convertToDecimal('¼')).toBeCloseTo(0.25);
+        expect(convertToDecimal('½')).toBeCloseTo(0.5);
+        expect(convertToDecimal('¾')).toBeCloseTo(0.75);
+        expect(convertToDecimal('⅓')).toBeCloseTo(1/3);
+        expect(convertToDecimal('⅔')).toBeCloseTo(2/3);
+        expect(convertToDecimal('⅕')).toBeCloseTo(0.2);
+        expect(convertToDecimal('⅖')).toBeCloseTo(0.4);
+        expect(convertToDecimal('⅗')).toBeCloseTo(0.6);
+        expect(convertToDecimal('⅘')).toBeCloseTo(0.8);
+        expect(convertToDecimal('⅙')).toBeCloseTo(1/6);
+        expect(convertToDecimal('⅚')).toBeCloseTo(5/6);
+        expect(convertToDecimal('⅛')).toBeCloseTo(0.125);
+        expect(convertToDecimal('⅜')).toBeCloseTo(0.375);
+        expect(convertToDecimal('⅝')).toBeCloseTo(0.625);
+        expect(convertToDecimal('⅞')).toBeCloseTo(0.875);
+    });
+
+    test('converts mixed numbers with unicode fractions to decimal', () => {
+        expect(convertToDecimal('1 ¼')).toBeCloseTo(1.25);
+        expect(convertToDecimal('2 ½')).toBeCloseTo(2.5);
+        expect(convertToDecimal('3 ¾')).toBeCloseTo(3.75);
+        expect(convertToDecimal('4 ⅓')).toBeCloseTo(4 + 1/3);
+        expect(convertToDecimal('5 ⅔')).toBeCloseTo(5 + 2/3);
+    });
+
+    test('handles invalid inputs', () => {
+        expect(convertToDecimal('invalid')).toBeNaN();
+        expect(convertToDecimal('')).toBeNaN();
+        expect(convertToDecimal(null)).toBeNaN();
+        expect(convertToDecimal(undefined)).toBeNaN();
+    });
+});
 
 describe('Unit Conversion Tests', () => {
     // Load the content script before each test

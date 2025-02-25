@@ -1,3 +1,107 @@
+// const regex = /\b(?:(?:(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[ \t\f\v][¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:ounce|oz|mi|pounds|lbs|lb|ft|in)[ \t\f\v]+(?![\r\n])(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[ \t\f\v][¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:ounce|oz|mi|pounds|lbs|lb|ft|in))|(?:(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[ \t\f\v][¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:ounce|oz|mi|pounds|lbs|lb|ft|in)(?![ \t\f\v]+(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:ounce|oz|mi|pounds|lbs|lb|ft|in))))\b(?!\s*\(.*\))/giu;
+
+// Define unit patterns
+const UNITS = {
+    LENGTH: {
+        PRIMARY: '′|feet|foot|ft',
+        SECONDARY: '″|inches|inch|in',
+        MILES: 'miles|mile|mi',
+    },
+    WEIGHT: {
+        PRIMARY: 'pounds|pound|lbs|lb',
+        SECONDARY: 'ounces|ounce|oz',
+    },
+    LIQUID: {
+        GALLONS: 'gallons|gallon|gal',
+        QUARTS: 'quarts|quart|qt',
+        PINTS: 'pints|pint|pt',
+        CUPS: 'cups|cup|c',
+        FLOZ: 'fluid\\s+ounces|fluid\\s+ounce|fl\\.?\\s*oz',
+        TBSP: 'tablespoons|tablespoon|tbsp|tbs|tb',
+        TSP: 'teaspoons|teaspoon|tsp|ts',
+    },
+};
+
+// @ai:keep
+const MEASUREMENT_REGEX_TEMPLATE = String.raw`/\b(?:(?:(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[ \t\f\v][¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[ \t\f\v][¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[ \t\f\v][¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:{{UNIT_COMBINED}}))))\b(?!\s*\(.*\))/giu`;
+
+/**
+ * Converts a string representation of a number (including mixed numbers, fractions, and unicode fractions) to a decimal value
+ * @param {string} value - The string to convert
+ * @returns {number} - The decimal value, or NaN if the input is invalid
+ *
+ * @ai:ignore-start
+ */
+function convertToDecimal(value) {
+    if (!value || typeof value !== 'string') {
+        return NaN;
+    }
+
+    // Handle unicode fractions
+    const unicodeFractions = {
+        '¼': 0.25,
+        '½': 0.5,
+        '¾': 0.75,
+        '⅓': 1 / 3,
+        '⅔': 2 / 3,
+        '⅕': 0.2,
+        '⅖': 0.4,
+        '⅗': 0.6,
+        '⅘': 0.8,
+        '⅙': 1 / 6,
+        '⅚': 5 / 6,
+        '⅛': 0.125,
+        '⅜': 0.375,
+        '⅝': 0.625,
+        '⅞': 0.875,
+    };
+
+    // Check if it's a single unicode fraction
+    if (unicodeFractions[value]) {
+        return unicodeFractions[value];
+    }
+
+    // Check for mixed number with unicode fraction (e.g., "1 ½")
+    const mixedUnicodeMatch = value.match(/^(\d+)\s+([¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])$/);
+    if (mixedUnicodeMatch) {
+        const wholeNumber = parseInt(mixedUnicodeMatch[1], 10);
+        const fraction = unicodeFractions[mixedUnicodeMatch[2]];
+        return wholeNumber + fraction;
+    }
+
+    // Check if it's a simple whole number
+    if (/^\d+$/.test(value)) {
+        return parseInt(value, 10);
+    }
+
+    // Check if it's a simple fraction (e.g., "1/2")
+    const fractionMatch = value.match(/^(\d+)\/(\d+)$/);
+    if (fractionMatch) {
+        return parseInt(fractionMatch[1], 10) / parseInt(fractionMatch[2], 10);
+    }
+
+    // Check for mixed number (e.g., "1 1/2")
+    const mixedMatch = value.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    if (mixedMatch) {
+        const wholeNumber = parseInt(mixedMatch[1], 10);
+        const numerator = parseInt(mixedMatch[2], 10);
+        const denominator = parseInt(mixedMatch[3], 10);
+        return wholeNumber + numerator / denominator;
+    }
+
+    return NaN;
+}
+/* @ai:ignore-end */
+
+function createRegexFromTemplate(unitBig, unitSmall, unitCombined) {
+    // Replace placeholders in template with actual unit patterns
+    let regexStr = MEASUREMENT_REGEX_TEMPLATE.replace('{{UNIT_BIG}}', unitBig || '')
+        .replace('{{UNIT_SMALL}}', unitSmall || '')
+        .replace('{{UNIT_COMBINED}}', unitCombined || '');
+
+    return new RegExp(regexStr, 'giu');
+}
+
 // Conversion constants to meters
 const LENGTH_INCH_TO_METERS = 0.0254;
 const LENGTH_FOOT_TO_METERS = 0.3048;
@@ -165,10 +269,19 @@ if (typeof window !== 'undefined') {
 
 // Make functions available for testing
 if (typeof exports !== 'undefined') {
-    exports.convertLengthText = convertLengthText;
-    exports.processNode = processNode;
-    exports.formatLengthMeasurement = formatLengthMeasurement;
-    exports.isEditableContext = isEditableContext;
+    Object.assign(exports, {
+        convertText,
+        convertLengthText,
+        convertWeightText,
+        convertLiquidText,
+        processNode,
+        formatLengthMeasurement,
+        formatWeightMeasurement,
+        formatLiquidMeasurement,
+        isEditableContext,
+        convertToDecimal,
+        createRegexFromTemplate,
+    });
 }
 
 // Add these new functions
@@ -364,17 +477,4 @@ function convertLiquidText(text) {
 // Update the main convertText function to handle liquid measurements
 function convertText(text) {
     return convertLiquidText(convertWeightText(convertLengthText(text)));
-}
-
-// Update exports
-if (typeof exports !== 'undefined') {
-    exports.convertText = convertText;
-    exports.convertLengthText = convertLengthText;
-    exports.convertWeightText = convertWeightText;
-    exports.convertLiquidText = convertLiquidText;
-    exports.processNode = processNode;
-    exports.formatLengthMeasurement = formatLengthMeasurement;
-    exports.formatWeightMeasurement = formatWeightMeasurement;
-    exports.formatLiquidMeasurement = formatLiquidMeasurement;
-    exports.isEditableContext = isEditableContext;
 }
