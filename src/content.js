@@ -61,8 +61,8 @@ function convertToDecimal(value) {
         return unicodeFractions[value];
     }
 
-    // Check for mixed number with unicode fraction (e.g., "1 ½")
-    const mixedUnicodeMatch = value.match(/^(\d+)\s+([¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])$/);
+    // Check for mixed number with unicode fraction (e.g., "1 ½" or "1½")
+    const mixedUnicodeMatch = value.match(/^(\d+)\s*([¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])$/);
     if (mixedUnicodeMatch) {
         const wholeNumber = parseInt(mixedUnicodeMatch[1], 10);
         const fraction = unicodeFractions[mixedUnicodeMatch[2]];
@@ -91,13 +91,12 @@ function convertToDecimal(value) {
 
     return NaN;
 }
-/* @ai:ignore-end */
 
 function createRegexFromTemplate(unitBig, unitSmall, unitCombined) {
     // Replace placeholders in template with actual unit patterns
     let regexStr = MEASUREMENT_REGEX_TEMPLATE.replace('{{UNIT_BIG}}', unitBig || '')
         .replace('{{UNIT_SMALL}}', unitSmall || '')
-        .replace('{{UNIT_COMBINED}}', unitCombined || '');
+        .replaceAll('{{UNIT_COMBINED}}', unitCombined || '');
 
     return new RegExp(regexStr, 'giu');
 }
@@ -119,6 +118,7 @@ const LIQUID_CUP_TO_L = 0.236588;
 const LIQUID_FLOZ_TO_L = 0.0295735;
 const LIQUID_TBSP_TO_L = 0.0147868;
 const LIQUID_TSP_TO_L = 0.00492892;
+/* @ai:ignore-end */
 
 function convertLengthToMeters(feet = 0, inches = 0, miles = 0) {
     return (

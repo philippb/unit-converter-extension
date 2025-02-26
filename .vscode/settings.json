@@ -2,7 +2,7 @@
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": true
+        "source.fixAll.eslint": "explicit"
     },
     "jest.autoRun": "off",
     "jest.showCoverageOnLoad": true,
@@ -11,4 +11,4 @@
         "**/node_modules": true,
         "**/coverage": true
     }
-} 
+}

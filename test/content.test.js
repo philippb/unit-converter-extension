@@ -1,4 +1,4 @@
-const { processNode, isEditableContext, convertToDecimal, createRegexFromTemplate } = require('../src/content.js');
+const { processNode, isEditableContext, convertToDecimal, createRegexFromTemplate, convertWeightText } = require('../src/content.js');
 
 describe.only('Basic Regex Tests', () => {
     test('test core regex', () => {
@@ -9,11 +9,12 @@ describe.only('Basic Regex Tests', () => {
             Test ½ oz me some <-- no match
             Test⅔ oz me some <-- match; but wrong. Needs leading space
             4 lb 4 ⅔ oz <-- match 
+            2 lbs 1⅔ oz <-- match
         `;
 
         const match = testString.match(createRegexFromTemplate('lb|lbs', 'oz|ounce', 'lb|lbs|oz|ounce'));
         console.log(match);
-        expect(match).toEqual(['5 ounce', '3 lb 2 ⅔ oz', ' ½ oz', '4 lb 4 ⅔ oz']);
+        expect(match).toEqual(['5 ounce', '3 lb 2 ⅔ oz', ' ½ oz', '4 lb 4 ⅔ oz', '2 lbs 1⅔ oz']);
     });
 });
 
@@ -59,8 +60,10 @@ describe.only('convertToDecimal', () => {
         expect(convertToDecimal('1 ¼')).toBeCloseTo(1.25);
         expect(convertToDecimal('2 ½')).toBeCloseTo(2.5);
         expect(convertToDecimal('3 ¾')).toBeCloseTo(3.75);
-        expect(convertToDecimal('4 ⅓')).toBeCloseTo(4 + 1/3);
-        expect(convertToDecimal('5 ⅔')).toBeCloseTo(5 + 2/3);
+        
+        expect(convertToDecimal('4⅓')).toBeCloseTo(4 + 1/3);
+        expect(convertToDecimal('5⅔')).toBeCloseTo(5 + 2/3);
+        expect(convertToDecimal('2⅔')).toBeCloseTo(2 + 2/3);
     });
 
     test('handles invalid inputs', () => {
@@ -444,6 +447,36 @@ describe('Editable Context Detection', () => {
 });
 
 describe('Weight Conversion Tests', () => {
+
+    test.only('convertWeightText handles various weight formats', () => {
+        const testCases = [
+            {
+                input: '5 pounds 8 ounces',
+                expected: '5 pounds 8 ounces (2.49 kg)'
+            },
+            {
+                input: '1/2 lb 3 oz',
+                expected: '1/2 lb 3 oz (311.84 g)'
+            },
+            {
+                input: '2 lbs 1⅔ oz', 
+                expected: '2 lbs 1⅔ oz (935.95 g)'
+            },
+            {
+                input: '10 ounces',
+                expected: '10 ounces (283.5 g)'
+            },
+            {
+                input: '3.5 pounds',
+                expected: '3.5 pounds (1.59 kg)'
+            }
+        ];
+
+        testCases.forEach(({input, expected}) => {
+            expect(convertWeightText(input)).toBe(expected);
+        });
+    });
+
     beforeEach(() => {
         document.body.innerHTML = '';
     });
