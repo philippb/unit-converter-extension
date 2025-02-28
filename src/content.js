@@ -69,6 +69,11 @@ function convertToDecimal(value) {
         return wholeNumber + fraction;
     }
 
+    // Check if it's a decimal number
+    if (/^\d*\.\d+$/.test(value)) {
+        return parseFloat(value);
+    }
+
     // Check if it's a simple whole number
     if (/^\d+$/.test(value)) {
         return parseInt(value, 10);

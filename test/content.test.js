@@ -1,6 +1,6 @@
-const { processNode, isEditableContext, convertToDecimal, createRegexFromTemplate, convertWeightText } = require('../src/content.js');
+const { processNode, isEditableContext, convertToDecimal, createRegexFromTemplate, convertWeightText, parseMeasurementMatch } = require('../src/content.js');
 
-describe.only('Basic Regex Tests', () => {
+describe('Basic Regex Tests', () => {
     test('test core regex', () => {
         const testString = `
             5 ounce   <-- match
@@ -18,7 +18,7 @@ describe.only('Basic Regex Tests', () => {
     });
 });
 
-describe.only('convertToDecimal', () => {
+describe('convertToDecimal', () => {
     test('converts mixed numbers to decimal', () => {
         expect(convertToDecimal('1 1/2')).toBeCloseTo(1.5);
         expect(convertToDecimal('2 3/4')).toBeCloseTo(2.75);
@@ -72,6 +72,51 @@ describe.only('convertToDecimal', () => {
         expect(convertToDecimal(null)).toBeNaN();
         expect(convertToDecimal(undefined)).toBeNaN();
     });
+});
+
+describe('Measurement Parsing', () => {
+    test('parseMeasurementMatch handles primary and secondary units', () => {
+        const units = {
+            PRIMARY: 'feet|foot|ft',
+            SECONDARY: 'inches|inch|in'
+        };
+
+        // Test primary unit only
+        expect(parseMeasurementMatch('5 feet', units)).toEqual({
+            primary: { value: 5, unit: 'feet' },
+            secondary: { value: 0, unit: null }
+        });
+
+        expect(parseMeasurementMatch('5.5 feet', units)).toEqual({
+            primary: { value: 5.5, unit: 'feet' },
+            secondary: { value: 0, unit: null }
+        });
+
+        // Test primary and secondary units
+        expect(parseMeasurementMatch('5 feet 6 inches', units)).toEqual({
+            primary: { value: 5, unit: 'feet' },
+            secondary: { value: 6, unit: 'inches' }
+        });
+
+        // Test secondary unit only
+        expect(parseMeasurementMatch('6 inches', units)).toEqual({
+            primary: { value: 0, unit: null },
+            secondary: { value: 6, unit: 'inches' }
+        });
+
+        // Test with fractions
+        expect(parseMeasurementMatch('5 1/2 feet 6 inches', units)).toEqual({
+            primary: { value: 5.5, unit: 'feet' },
+            secondary: { value: 6, unit: 'inches' }
+        });
+
+        // Test with unicode fractions
+        expect(parseMeasurementMatch('5½ feet 6 ¼ inches', units)).toEqual({
+            primary: { value: 5.5, unit: 'feet' },
+            secondary: { value: 6.25, unit: 'inches' }
+        });
+    });
+
 });
 
 describe('Unit Conversion Tests', () => {
@@ -448,7 +493,7 @@ describe('Editable Context Detection', () => {
 
 describe('Weight Conversion Tests', () => {
 
-    test.only('convertWeightText handles various weight formats', () => {
+    test('convertWeightText handles various weight formats', () => {
         const testCases = [
             {
                 input: '5 pounds 8 ounces',
