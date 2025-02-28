@@ -10,6 +10,7 @@ describe('Basic Regex Tests', () => {
             Test⅔ oz me some <-- match; but wrong. Needs leading space
             4 lb 4 ⅔ oz <-- match 
             2 lbs 1⅔ oz <-- match
+            6ft 2in <-- no space between units
         `;
 
         const match = testString.match(createRegexFromTemplate('lb|lbs', 'oz|ounce', 'lb|lbs|oz|ounce'));
@@ -114,6 +115,11 @@ describe('Measurement Parsing', () => {
         expect(parseMeasurementMatch('5½ feet 6 ¼ inches', units)).toEqual({
             primary: { value: 5.5, unit: 'feet' },
             secondary: { value: 6.25, unit: 'inches' }
+        });
+
+        expect(parseMeasurementMatch('6ft 2in', units)).toEqual({
+            primary: { value: 6, unit: 'ft' },
+            secondary: { value: 2, unit: 'in' }
         });
     });
 
