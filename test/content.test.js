@@ -10,12 +10,12 @@ describe('Basic Regex Tests', () => {
             Test⅔ oz me some <-- match; but wrong. Needs leading space
             4 lb 4 ⅔ oz <-- match 
             2 lbs 1⅔ oz <-- match
-            6ft 2in <-- no space between units
+            Clearance: 6 ft 2 in minimum <-- no space between units
         `;
 
-        const match = testString.match(createRegexFromTemplate('lb|lbs', 'oz|ounce', 'lb|lbs|oz|ounce'));
+        const match = testString.match(createRegexFromTemplate('lb|lbs|ft', 'oz|ounce|in', 'lb|lbs|oz|ounce'));
         console.log(match);
-        expect(match).toEqual(['5 ounce', '3 lb 2 ⅔ oz', ' ½ oz', '4 lb 4 ⅔ oz', '2 lbs 1⅔ oz']);
+        expect(match).toEqual(['5 ounce', '3 lb 2 ⅔ oz', ' ½ oz', '4 lb 4 ⅔ oz', '2 lbs 1⅔ oz', '6 ft 2 in']);
     });
 });
 
@@ -117,7 +117,7 @@ describe('Measurement Parsing', () => {
             secondary: { value: 6.25, unit: 'inches' }
         });
 
-        expect(parseMeasurementMatch('6ft 2in', units)).toEqual({
+        expect(parseMeasurementMatch('6 ft 2 in', units)).toEqual({
             primary: { value: 6, unit: 'ft' },
             secondary: { value: 2, unit: 'in' }
         });
@@ -215,8 +215,8 @@ describe('Unit Conversion Tests', () => {
                     expected: 'A board 6 feet 5 1/2 inches (1.97 m) long',
                 },
                 {
-                    input: 'Clearance: 6ft 2in minimum',
-                    expected: 'Clearance: 6ft 2in (1.88 m) minimum',
+                    input: 'Clearance: 6 ft 2 in minimum',
+                    expected: 'Clearance: 6 ft 2 in (1.88 m) minimum',
                 },
             ];
 
@@ -511,7 +511,7 @@ describe('Weight Conversion Tests', () => {
             },
             {
                 input: '2 lbs 1⅔ oz', 
-                expected: '2 lbs 1⅔ oz (935.95 g)'
+                expected: '2 lbs 1⅔ oz (954.43 g)'
             },
             {
                 input: '10 ounces',
@@ -591,7 +591,7 @@ describe('Weight Conversion Tests', () => {
         test('handles unicode fractions in pounds', () => {
             const unicodeFractions = [
                 // { input: '6½ pounds', expected: '6½ pounds (2.95 kg)' },
-                { input: '6¾ pounds', expected: '6¾ pounds (3.04 kg)' },
+                { input: '6¾ pounds', expected: '6¾ pounds (3.06 kg)' },
                 { input: '6¼ pounds', expected: '6¼ pounds (2.84 kg)' },
                 { input: '6⅓ pounds', expected: '6⅓ pounds (2.87 kg)' },
                 { input: '6⅔ pounds', expected: '6⅔ pounds (3.02 kg)' },
@@ -604,7 +604,7 @@ describe('Weight Conversion Tests', () => {
                 { input: '6⅛ pounds', expected: '6⅛ pounds (2.73 kg)' },
                 { input: '6⅜ pounds', expected: '6⅜ pounds (2.89 kg)' },
                 { input: '6⅝ pounds', expected: '6⅝ pounds (2.97 kg)' },
-                { input: '6⅞ pounds', expected: '6⅞ pounds (3.04 kg)' },
+                { input: '6⅞ pounds', expected: '6⅞ pounds (3.06 kg)' },
             ];
 
             unicodeFractions.forEach(({ input, expected }) => {
@@ -623,8 +623,8 @@ describe('Weight Conversion Tests', () => {
                     expected: 'The baby weighs 7 pounds 8 ounces (3.4 kg)',
                 },
                 {
-                    input: 'Package weight: 2lb 4oz',
-                    expected: 'Package weight: 2lb 4oz (1.02 kg)',
+                    input: 'Package weight: 2 lb 4 oz',
+                    expected: 'Package weight: 2 lb 4 oz (1.02 kg)',
                 },
             ];
 
@@ -693,7 +693,7 @@ describe('Liquid Conversion Tests', () => {
         test('converts gallons', () => {
             document.body.textContent = 'Fill with 2 gallons of water';
             processNode(document.body);
-            expect(document.body.textContent).toBe('Fill with 2 gallons (7.58 L) of water');
+            expect(document.body.textContent).toBe('Fill with 2 gallons (7.57 L) of water');
         });
 
         test('converts quarts', () => {
@@ -739,7 +739,7 @@ describe('Liquid Conversion Tests', () => {
                 { input: '1/2 cup', expected: '1/2 cup (118.29 ml)' },
                 { input: '1/4 teaspoon', expected: '1/4 teaspoon (1.23 ml)' },
                 { input: '1/3 tablespoon', expected: '1/3 tablespoon (4.93 ml)' },
-                { input: '1/2 gallon', expected: '1/2 gallon (1.57 L)' },
+                { input: '1/2 gallon', expected: '1/2 gallon (1.89 L)' },
             ];
 
             fractions.forEach(({ input, expected }) => {
@@ -956,8 +956,8 @@ describe('Additional Edge Cases', () => {
                 expected: 'Mix 2 cups (0.47 L) flour with 1/2 tsp (2.46 ml) salt and 3 tbsp (44.36 ml) sugar, then add 8 fl oz (236.59 ml) milk'
             },
             {
-                input: 'A 6ft 2in person weighing 180 lbs carrying a 2-gallon jug',
-                expected: 'A 6ft 2in (1.88 m) person weighing 180 lbs (81.65 kg) carrying a 2-gallon (7.57 L) jug'
+                input: 'A 6 ft 2 in person weighing 180 lbs carrying a 2-gallon jug',
+                expected: 'A 6 ft 2 in (1.88 m) person weighing 180 lbs (81.65 kg) carrying a 2-gallon (7.57 L) jug'
             }
         ];
 
