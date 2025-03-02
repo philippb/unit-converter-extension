@@ -79,6 +79,10 @@ describe('convertToDecimal', () => {
     test('handles spaces in mixed numbers', () => {
         expect(convertToDecimal('2   1/2')).toBeCloseTo(2.5);
         expect(convertToDecimal('2   1/2     ')).toBeCloseTo(2.5);
+        expect(convertToDecimal('6⅝   ')).toBeCloseTo(6 + 5/8);
+        expect(convertToDecimal('3   ¾     ')).toBeCloseTo(3.75);
+        expect(convertToDecimal('¼    ')).toBeCloseTo(0.25);
+        expect(convertToDecimal('1/8    ')).toBeCloseTo(0.125);
     });
 });
 

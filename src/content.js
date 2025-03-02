@@ -57,12 +57,12 @@ function convertToDecimal(value) {
     };
 
     // Check if it's a single unicode fraction
-    if (unicodeFractions[value]) {
-        return unicodeFractions[value];
+    if (unicodeFractions[value.trim()]) {
+        return unicodeFractions[value.trim()];
     }
 
     // Check for mixed number with unicode fraction (e.g., "1 ½" or "1½")
-    const mixedUnicodeMatch = value.match(/^(\d+)\s*([¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])$/);
+    const mixedUnicodeMatch = value.match(/^(\d+)\s*([¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*$/);
     if (mixedUnicodeMatch) {
         const wholeNumber = parseInt(mixedUnicodeMatch[1], 10);
         const fraction = unicodeFractions[mixedUnicodeMatch[2]];
@@ -70,23 +70,23 @@ function convertToDecimal(value) {
     }
 
     // Check if it's a decimal number
-    if (/^\d*\.\d+$/.test(value)) {
+    if (/^\d*\.\d+\s*$/.test(value)) {
         return parseFloat(value);
     }
 
     // Check if it's a simple whole number
-    if (/^\d+$/.test(value)) {
+    if (/^\d+\s*$/.test(value)) {
         return parseInt(value, 10);
     }
 
     // Check if it's a simple fraction (e.g., "1/2")
-    const fractionMatch = value.match(/^(\d+)\/(\d+)$/);
+    const fractionMatch = value.match(/^(\d+)\/(\d+)\s*$/);
     if (fractionMatch) {
         return parseInt(fractionMatch[1], 10) / parseInt(fractionMatch[2], 10);
     }
 
     // Check for mixed number (e.g., "1 1/2")
-    const mixedMatch = value.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    const mixedMatch = value.match(/^(\d+)\s+(\d+)\/(\d+)\s*$/);
     if (mixedMatch) {
         const wholeNumber = parseInt(mixedMatch[1], 10);
         const numerator = parseInt(mixedMatch[2], 10);
