@@ -78,6 +78,7 @@ describe('convertToDecimal', () => {
 
     test('handles spaces in mixed numbers', () => {
         expect(convertToDecimal('2   1/2')).toBeCloseTo(2.5);
+        expect(convertToDecimal('2   1/2     ')).toBeCloseTo(2.5);
     });
 });
 
