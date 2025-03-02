@@ -3,9 +3,13 @@
 // Define unit patterns
 const UNITS = {
     LENGTH: {
-        PRIMARY: '′|feet|foot|ft',
-        SECONDARY: '″|inches|inch|in',
-        MILES: 'miles|mile|mi',
+        FEET_INCHES: {
+            PRIMARY: '′|feet|foot|ft',
+            SECONDARY: '″|inches|inch|in',
+        },
+        MILES: {
+            PRIMARY: 'miles|mile|mi',
+        },
     },
     WEIGHT: {
         PRIMARY: 'pounds|pound|lbs|lb',
@@ -215,29 +219,23 @@ function convertLengthText(text) {
 
     // Convert feet-inches combinations
     const feetInchesRegex = createRegexFromTemplate(
-        UNITS.LENGTH.PRIMARY,
-        UNITS.LENGTH.SECONDARY,
-        `${UNITS.LENGTH.PRIMARY}|${UNITS.LENGTH.SECONDARY}`
+        UNITS.LENGTH.FEET_INCHES.PRIMARY,
+        UNITS.LENGTH.FEET_INCHES.SECONDARY,
+        `${UNITS.LENGTH.FEET_INCHES.PRIMARY}|${UNITS.LENGTH.FEET_INCHES.SECONDARY}`
     );
 
     converted = converted.replace(feetInchesRegex, function (match) {
-        const parsed = parseMeasurementMatch(match, UNITS.LENGTH);
+        const parsed = parseMeasurementMatch(match, UNITS.LENGTH.FEET_INCHES);
         const meters = convertLengthToMeters(parsed.primary.value, parsed.secondary.value);
         return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
     });
 
     // Convert standalone miles
-    const milesRegex = createRegexFromTemplate('', '', UNITS.LENGTH.MILES);
+    const milesRegex = createRegexFromTemplate(UNITS.LENGTH.MILES.PRIMARY, '', '');
 
     converted = converted.replace(milesRegex, function (match) {
-        const parts = match.trim().split(/\s+/);
-        let miles = 0;
-
-        if (parts.length >= 2) {
-            miles = convertToDecimal(parts[0]);
-        }
-
-        const meters = convertLengthToMeters(0, 0, miles);
+        const parsed = parseMeasurementMatch(match, UNITS.LENGTH.MILES);
+        const meters = convertLengthToMeters(0, 0, parsed.primary.value);
         return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
     });
 
@@ -426,6 +424,7 @@ function convertLiquidText(text) {
 
 // Update the main convertText function to handle liquid measurements
 function convertText(text) {
+    // TODO: Add router for the right conver function
     return convertLiquidText(convertWeightText(convertLengthText(text)));
 }
 
