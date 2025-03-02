@@ -424,8 +424,37 @@ function convertLiquidText(text) {
 
 // Update the main convertText function to handle liquid measurements
 function convertText(text) {
-    // TODO: Add router for the right conver function
-    return convertLiquidText(convertWeightText(convertLengthText(text)));
+    let converted = text;
+
+    // Helper function to check if text contains any units from a unit group
+    const containsUnits = (text, unitPatterns) => {
+        // Compose a string of all unit patterns at the first level
+        const unitString = Object.values(unitPatterns).reduce((acc, pattern) => {
+            if (typeof pattern === 'string') {
+                return acc ? `${acc}|${pattern}` : pattern;
+            }
+            const subPatterns = Object.values(pattern)
+                .map((p) => {
+                    if (typeof p === 'string') return p;
+                    return Object.values(p).join('|');
+                })
+                .join('|');
+            return acc ? `${acc}|${subPatterns}` : subPatterns;
+        }, '');
+
+        return new RegExp(`\\b(?:${unitString})\\b`, 'i').test(text);
+    };
+
+    // Route to appropriate conversion function based on unit type
+    if (containsUnits(text, UNITS.LENGTH)) {
+        converted = convertLengthText(text);
+    } else if (containsUnits(text, UNITS.WEIGHT)) {
+        converted = convertWeightText(text);
+    } else if (containsUnits(text, UNITS.LIQUID)) {
+        converted = convertLiquidText(text);
+    }
+
+    return converted;
 }
 
 // Make functions available for testing
