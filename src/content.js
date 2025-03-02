@@ -133,17 +133,6 @@ function convertLengthToMeters(feet = 0, inches = 0, miles = 0) {
     );
 }
 
-function parseLengthInches(whole, numerator, denominator) {
-    let inches = 0;
-    if (whole) {
-        inches = parseFloat(whole);
-    }
-    if (numerator && denominator) {
-        inches += parseFloat(numerator) / parseFloat(denominator);
-    }
-    return inches;
-}
-
 function formatLengthMeasurement(meters) {
     function formatNumber(num) {
         // Convert to string with max 2 decimal places
@@ -169,47 +158,88 @@ function formatLengthMeasurement(meters) {
     }
 }
 
+/**
+ * Parses a measurement string containing one or two measurements with units
+ * @param {string} match - The matched string (e.g., "5 ft 6 in" or "3 lbs" or "2 ½ oz")
+ * @param {Object} units - Object containing primary and secondary unit patterns
+ * @returns {Object} - Contains values and units found
+ */
+function parseMeasurementMatch(match, units) {
+    // Split on units while preserving them
+    const unitPattern = new RegExp(`(${units.PRIMARY}|${units.SECONDARY})`, 'i');
+    const parts = match
+        .trim()
+        .split(unitPattern)
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+    // Initialize return values
+    let primaryValue = 0,
+        secondaryValue = 0;
+    let primaryUnit = null,
+        secondaryUnit = null;
+
+    if (parts.length >= 2) {
+        const firstValue = convertToDecimal(parts[0]);
+        const firstUnit = parts[1].toLowerCase();
+
+        if (firstUnit.match(new RegExp(`^(${units.PRIMARY})$`, 'i'))) {
+            primaryValue = firstValue;
+            primaryUnit = firstUnit;
+
+            // Check for secondary measurement
+            if (parts.length >= 4) {
+                const secondValue = convertToDecimal(parts[2]);
+                const secondUnit = parts[3].toLowerCase();
+
+                if (secondUnit.match(new RegExp(`^(${units.SECONDARY})$`, 'i'))) {
+                    secondaryValue = secondValue;
+                    secondaryUnit = secondUnit;
+                }
+            }
+        } else if (firstUnit.match(new RegExp(`^(${units.SECONDARY})$`, 'i'))) {
+            // Handle case where only secondary unit is present
+            secondaryValue = firstValue;
+            secondaryUnit = firstUnit;
+        }
+    }
+
+    return {
+        primary: { value: primaryValue, unit: primaryUnit },
+        secondary: { value: secondaryValue, unit: secondaryUnit },
+    };
+}
+
 function convertLengthText(text) {
     let converted = text;
 
-    // Convert miles first (should be done before feet to avoid partial matches)
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?)\s*(?:mile|miles|mi)\b(?!\s*(?:\(.*\)))/gi,
-        function (match, miles) {
-            const meters = convertLengthToMeters(0, 0, parseFloat(miles));
-            return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
-        }
+    // Convert feet-inches combinations
+    const feetInchesRegex = createRegexFromTemplate(
+        UNITS.LENGTH.PRIMARY,
+        UNITS.LENGTH.SECONDARY,
+        `${UNITS.LENGTH.PRIMARY}|${UNITS.LENGTH.SECONDARY}`
     );
 
-    // Handle combined feet and inches pattern
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?)\s*(?:feet|foot|ft)\s+(?:(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*)?(?:inches|inch|in)\b/gi,
-        function (match, feet, wholeInches, numerator, denominator) {
-            const inchValue = parseLengthInches(wholeInches, numerator, denominator);
-            const meters = convertLengthToMeters(parseFloat(feet), inchValue);
-            return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
-        }
-    );
+    converted = converted.replace(feetInchesRegex, function (match) {
+        const parsed = parseMeasurementMatch(match, UNITS.LENGTH);
+        const meters = convertLengthToMeters(parsed.primary.value, parsed.secondary.value);
+        return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
+    });
 
-    // Convert standalone inches (including fractions and decimals)
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*inch(?:es)?\b(?!\s*(?:\(.*\)))/gi,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const inches = parseLengthInches(whole, numerator, denominator);
-            const meters = convertLengthToMeters(0, inches);
-            return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
-        }
-    );
+    // Convert standalone miles
+    const milesRegex = createRegexFromTemplate('', '', UNITS.LENGTH.MILES);
 
-    // Convert standalone feet
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?)\s*(?:foot|feet|ft)\b(?!\s+(?:\d+(?:\.\d+)?(?:\s+)?(?:\d+\s*\/\s*\d+)?\s*)?(?:inches|inch|in)\b)(?!\s*(?:\(.*\)))/gi,
-        function (match, feet) {
-            const meters = convertLengthToMeters(parseFloat(feet), 0);
-            return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
+    converted = converted.replace(milesRegex, function (match) {
+        const parts = match.trim().split(/\s+/);
+        let miles = 0;
+
+        if (parts.length >= 2) {
+            miles = convertToDecimal(parts[0]);
         }
-    );
+
+        const meters = convertLengthToMeters(0, 0, miles);
+        return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
+    });
 
     return converted;
 }
@@ -272,37 +302,9 @@ if (typeof window !== 'undefined') {
     });
 }
 
-// Make functions available for testing
-if (typeof exports !== 'undefined') {
-    Object.assign(exports, {
-        convertText,
-        convertLengthText,
-        convertWeightText,
-        convertLiquidText,
-        processNode,
-        formatLengthMeasurement,
-        formatWeightMeasurement,
-        formatLiquidMeasurement,
-        isEditableContext,
-        convertToDecimal,
-        createRegexFromTemplate,
-    });
-}
-
 // Add these new functions
 function convertWeightToGrams(pounds = 0, ounces = 0) {
     return pounds * WEIGHT_POUND_TO_GRAMS + ounces * WEIGHT_OUNCE_TO_GRAMS;
-}
-
-function parseWeightOunces(whole, numerator, denominator) {
-    let ounces = 0;
-    if (whole) {
-        ounces = parseFloat(whole);
-    }
-    if (numerator && denominator) {
-        ounces += parseFloat(numerator) / parseFloat(denominator);
-    }
-    return ounces;
 }
 
 function formatWeightMeasurement(grams) {
@@ -322,35 +324,17 @@ function formatWeightMeasurement(grams) {
 function convertWeightText(text) {
     let converted = text;
 
-    // Convert combined pounds and ounces
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?)\s*(?:pounds|pound|lbs|lb)\s+(?:(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*)?(?:ounces|ounce|oz)\b(?!\s*(?:\(.*\)))/giu,
-        function (match, pounds, wholeOunces, numerator, denominator) {
-            const ounceValue = parseWeightOunces(wholeOunces, numerator, denominator);
-            const grams = convertWeightToGrams(parseFloat(pounds), ounceValue);
-            return grams === 0 ? match : `${match} (${formatWeightMeasurement(grams)})`;
-        }
+    const weightRegex = createRegexFromTemplate(
+        UNITS.WEIGHT.PRIMARY,
+        UNITS.WEIGHT.SECONDARY,
+        `${UNITS.WEIGHT.PRIMARY}|${UNITS.WEIGHT.SECONDARY}`
     );
 
-    // Convert standalone pounds
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?)\s*(?:pounds|pound|lbs|lb)\b(?!\s+(?:\d+(?:\.\d+)?(?:\s+)?(?:\d+\s*\/\s*\d+)?\s*)?(?:ounces|ounce|oz)\b)(?!\s*(?:\(.*\)))/giu,
-        function (match, pounds) {
-            const grams = convertWeightToGrams(parseFloat(pounds), 0);
-            return grams === 0 ? match : `${match} (${formatWeightMeasurement(grams)})`;
-        }
-    );
-
-    // Convert standalone ounces
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:ounces|ounce|oz)\b(?!\s*(?:\(.*\)))/giu,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const ounces = parseWeightOunces(whole, numerator, denominator);
-            const grams = convertWeightToGrams(0, ounces);
-            return grams === 0 ? match : `${match} (${formatWeightMeasurement(grams)})`;
-        }
-    );
+    converted = converted.replace(weightRegex, function (match) {
+        const parsed = parseMeasurementMatch(match, UNITS.WEIGHT);
+        const grams = convertWeightToGrams(parsed.primary.value, parsed.secondary.value);
+        return grams === 0 ? match : `${match} (${formatWeightMeasurement(grams)})`;
+    });
 
     return converted;
 }
@@ -376,21 +360,11 @@ function convertLiquidToL(
     );
 }
 
-function parseLiquidFraction(whole, numerator, denominator) {
-    let value = 0;
-    if (whole) {
-        value = parseFloat(whole);
-    }
-    if (numerator && denominator) {
-        value += parseFloat(numerator) / parseFloat(denominator);
-    }
-    return value;
-}
-
-// Update the formatting function to use liters as base
 function formatLiquidMeasurement(liters) {
     function formatNumber(num) {
-        const str = num.toFixed(2);
+        // Round to 2 decimal places
+        const rounded = Math.round(num * 100) / 100;
+        const str = rounded.toFixed(2);
         return str.replace(/\.?0+$/, '');
     }
 
@@ -405,76 +379,47 @@ function formatLiquidMeasurement(liters) {
 function convertLiquidText(text) {
     let converted = text;
 
-    // Convert gallons
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?)\s*(?:gallons|gallon|gal)\b(?!\s*(?:\(.*\)))/giu,
-        function (match, gallons) {
-            const liters = convertLiquidToL(parseFloat(gallons));
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
+    // Handle each liquid measurement type
+    Object.entries(UNITS.LIQUID).forEach(([unit, pattern]) => {
+        const regex = createRegexFromTemplate('', '', pattern);
 
-    // Convert quarts
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?)\s*(?:quarts|quart|qt)\b(?!\s*(?:\(.*\)))/giu,
-        function (match, quarts) {
-            const liters = convertLiquidToL(0, parseFloat(quarts));
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
+        converted = converted.replace(regex, function (match) {
+            const parts = match.trim().split(/\s+/);
+            let value = 0;
 
-    // Convert pints
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?)\s*(?:pints|pint|pt)\b(?!\s*(?:\(.*\)))/giu,
-        function (match, pints) {
-            const liters = convertLiquidToL(0, 0, parseFloat(pints));
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
+            if (parts.length >= 2) {
+                value = convertToDecimal(parts[0]);
+            }
 
-    // Convert cups
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:cups|cup|c)\b(?!\s*(?:\(.*\)))/giu,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const cups = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(0, 0, 0, cups);
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
+            // Convert based on unit type
+            let liters = 0;
+            switch (unit) {
+                case 'GALLONS':
+                    liters = value * LIQUID_GALLON_TO_L;
+                    break;
+                case 'QUARTS':
+                    liters = value * LIQUID_QUART_TO_L;
+                    break;
+                case 'PINTS':
+                    liters = value * LIQUID_PINT_TO_L;
+                    break;
+                case 'CUPS':
+                    liters = value * LIQUID_CUP_TO_L;
+                    break;
+                case 'FLOZ':
+                    liters = value * LIQUID_FLOZ_TO_L;
+                    break;
+                case 'TBSP':
+                    liters = value * LIQUID_TBSP_TO_L;
+                    break;
+                case 'TSP':
+                    liters = value * LIQUID_TSP_TO_L;
+                    break;
+            }
 
-    // Convert fluid ounces
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:fluid\s+ounces|fluid\s+ounce|fl\.?\s*oz)\b(?!\s*(?:\(.*\)))/giu,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const floz = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(0, 0, 0, 0, floz);
             return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
-
-    // Convert tablespoons
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:tablespoons|tablespoon|tbsp|tbs|tb)\b(?!\s*(?:\(.*\)))/giu,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const tbsp = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(0, 0, 0, 0, 0, tbsp);
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
-
-    // Convert teaspoons
-    converted = converted.replace(
-        /\b(\d+(?:\.\d+)?(?:\s+)?)?(?:(\d+)\s*\/\s*(\d+))?\s*(?:teaspoons|teaspoon|tsp|ts)\b(?!\s*(?:\(.*\)))/giu,
-        function (match, whole, numerator, denominator) {
-            if (!whole && !numerator) return match;
-            const tsp = parseLiquidFraction(whole, numerator, denominator);
-            const liters = convertLiquidToL(0, 0, 0, 0, 0, 0, tsp);
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        }
-    );
+        });
+    });
 
     return converted;
 }
@@ -482,4 +427,22 @@ function convertLiquidText(text) {
 // Update the main convertText function to handle liquid measurements
 function convertText(text) {
     return convertLiquidText(convertWeightText(convertLengthText(text)));
+}
+
+// Make functions available for testing
+if (typeof exports !== 'undefined') {
+    Object.assign(exports, {
+        convertText,
+        convertLengthText,
+        convertWeightText,
+        convertLiquidText,
+        processNode,
+        formatLengthMeasurement,
+        formatWeightMeasurement,
+        formatLiquidMeasurement,
+        isEditableContext,
+        convertToDecimal,
+        createRegexFromTemplate,
+        parseMeasurementMatch,
+    });
 }
