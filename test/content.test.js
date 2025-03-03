@@ -1,7 +1,8 @@
 const { processNode, isEditableContext, convertToDecimal, createRegexFromTemplate, convertWeightText, parseMeasurementMatch } = require('../src/content.js');
 
 describe('Basic Regex Tests', () => {
-    test('test core regex', () => {
+    test
+    ('test core regex', () => {
         const testString = `
             5 ounce   <-- match
             3 lb 2 ⅔ oz  <-- match
@@ -619,7 +620,7 @@ describe('Weight Conversion Tests', () => {
                 { input: '6⅚ pounds', expected: '6⅚ pounds (3.1 kg)' },
                 { input: '6⅛ pounds', expected: '6⅛ pounds (2.78 kg)' },
                 { input: '6⅜ pounds', expected: '6⅜ pounds (2.89 kg)' },
-                { input: '6⅝ pounds', expected: '6⅝ pounds (3 kg)' },
+                { input: '6⅝ pounds', expected: '6⅝ pounds (3.01 kg)' },
                 { input: '6⅞ pounds', expected: '6⅞ pounds (3.12 kg)' },
             ];
 
