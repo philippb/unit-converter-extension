@@ -841,31 +841,16 @@ describe('Liquid Conversion Tests', () => {
                 { input: '1.5 gallons of water', expected: '1.5 gallons (5.68 L) of water' },
                 { input: '2.5 quarts of milk', expected: '2.5 quarts (2.37 L) of milk' },
                 { input: '1.5 pints of cream', expected: '1.5 pints (0.71 L) of cream' },
-                {
-                    input: '2.5 fluid ounces of extract',
-                    expected: '2.5 fluid ounces (73.93 ml) of extract',
-                },
+                { input: '2.5 fluid ounces of extract', expected: '2.5 fluid ounces (73.93 ml) of extract' },
                 { input: '1.5 tablespoons of oil', expected: '1.5 tablespoons (22.18 ml) of oil' },
-                {
-                    input: '2.5 teaspoons of vanilla',
-                    expected: '2.5 teaspoons (12.32 ml) of vanilla',
-                },
+                { input: '2.5 teaspoons of vanilla', expected: '2.5 teaspoons (12.32 ml) of vanilla' },
                 { input: '1 3/4 cups of sugar', expected: '1 3/4 cups (0.41 L) of sugar' },
                 { input: '2 1/2 gallons of water', expected: '2 1/2 gallons (9.46 L) of water' },
                 { input: '1 1/4 quarts of milk', expected: '1 1/4 quarts (1.18 L) of milk' },
                 { input: '2 3/4 pints of cream', expected: '2 3/4 pints (1.3 L) of cream' },
-                {
-                    input: '1 1/2 fluid ounces of extract',
-                    expected: '1 1/2 fluid ounces (44.36 ml) of extract',
-                },
-                {
-                    input: '2 1/4 tablespoons of oil',
-                    expected: '2 1/4 tablespoons (33.27 ml) of oil',
-                },
-                {
-                    input: '1 3/4 teaspoons of vanilla',
-                    expected: '1 3/4 teaspoons (8.63 ml) of vanilla',
-                },
+                { input: '1 1/2 fluid ounces of extract', expected: '1 1/2 fluid ounces (44.36 ml) of extract' },
+                { input: '2 1/4 tablespoons of oil', expected: '2 1/4 tablespoons (33.27 ml) of oil' },
+                { input: '1 3/4 teaspoons of vanilla', expected: '1 3/4 teaspoons (8.63 ml) of vanilla' },
             ];
 
             pluralCases.forEach(({ input, expected }) => {
@@ -955,8 +940,8 @@ describe('Additional Edge Cases', () => {
     test('handles measurements with special characters', () => {
         const cases = [
             // { input: '5-inch pipe', expected: '5-inch (12.7 cm) pipe' },
-            { input: '2′ (feet symbol)', expected: '2′ (0.61 m) (feet symbol)' },
-            { input: '3″ (inches symbol)', expected: '3″ (7.62 cm) (inches symbol)' }
+            { input: '2′ (feet symbol)', expected: '2′ (0.61 m) <-- feet symbol' },
+            { input: '3″ (inches symbol)', expected: '3″ (7.62 cm) <-- inches symbol' }
         ];
 
         cases.forEach(({ input, expected }) => {

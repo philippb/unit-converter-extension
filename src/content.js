@@ -16,13 +16,40 @@ const UNITS = {
         SECONDARY: 'ounces|ounce|oz',
     },
     LIQUID: {
-        GALLONS: 'gallons|gallon|gal',
-        QUARTS: 'quarts|quart|qt',
-        PINTS: 'pints|pint|pt',
-        CUPS: 'cups|cup|c',
-        FLOZ: 'fluid\\s+ounces|fluid\\s+ounce|fl\\.?\\s*oz',
-        TBSP: 'tablespoons|tablespoon|tbsp|tbs|tb',
-        TSP: 'teaspoons|teaspoon|tsp|ts',
+        GALLONS_QUARTS: {
+            PRIMARY: 'gallons|gallon|gal',
+            SECONDARY: 'quarts|quart|qt',
+        },
+        CUPS_FLOZ: {
+            PRIMARY: 'cups|cup|c',
+            SECONDARY: 'fluid\\s+ounces|fluid\\s+ounce|fl\\.?\\s*oz',
+        },
+        TBSP_TSP: {
+            PRIMARY: 'tablespoons|tablespoon|tbsp|tbs|tb',
+            SECONDARY: 'teaspoons|teaspoon|tsp|ts',
+        },
+        // Keep individual units for standalone measurements
+        GALLONS: {
+            PRIMARY: 'gallons|gallon|gal',
+        },
+        QUARTS: {
+            PRIMARY: 'quarts|quart|qt',
+        },
+        PINTS: {
+            PRIMARY: 'pints|pint|pt',
+        },
+        CUPS: {
+            PRIMARY: 'cups|cup|c',
+        },
+        FLOZ: {
+            PRIMARY: 'fluid\\s+ounces|fluid\\s+ounce|fl\\.?\\s*oz',
+        },
+        TBSP: {
+            PRIMARY: 'tablespoons|tablespoon|tbsp|tbs|tb',
+        },
+        TSP: {
+            PRIMARY: 'teaspoons|teaspoon|tsp|ts',
+        },
     },
 };
 
@@ -336,27 +363,6 @@ function convertWeightText(text) {
     return converted;
 }
 
-// Update the conversion function to use liters
-function convertLiquidToL(
-    gallons = 0,
-    quarts = 0,
-    pints = 0,
-    cups = 0,
-    floz = 0,
-    tbsp = 0,
-    tsp = 0
-) {
-    return (
-        gallons * LIQUID_GALLON_TO_L +
-        quarts * LIQUID_QUART_TO_L +
-        pints * LIQUID_PINT_TO_L +
-        cups * LIQUID_CUP_TO_L +
-        floz * LIQUID_FLOZ_TO_L +
-        tbsp * LIQUID_TBSP_TO_L +
-        tsp * LIQUID_TSP_TO_L
-    );
-}
-
 function formatLiquidMeasurement(liters) {
     function formatNumber(num) {
         // Round to 2 decimal places
@@ -376,46 +382,68 @@ function formatLiquidMeasurement(liters) {
 function convertLiquidText(text) {
     let converted = text;
 
-    // Handle each liquid measurement type
-    Object.entries(UNITS.LIQUID).forEach(([unit, pattern]) => {
-        const regex = createRegexFromTemplate(pattern);
+    // Convert gallons-quarts combinations
+    const gallonsQuartsRegex = createRegexFromTemplate(
+        UNITS.LIQUID.GALLONS_QUARTS.PRIMARY,
+        UNITS.LIQUID.GALLONS_QUARTS.SECONDARY
+    );
 
-        converted = converted.replace(regex, function (match) {
-            const parts = match.trim().split(/\s+/);
-            let value = 0;
+    converted = converted.replace(gallonsQuartsRegex, function (match) {
+        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS_QUARTS);
+        const liters =
+            parsed.primary.value * LIQUID_GALLON_TO_L + parsed.secondary.value * LIQUID_QUART_TO_L;
+        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+    });
 
-            if (parts.length >= 2) {
-                value = convertToDecimal(parts[0]);
-            }
+    const cupsFluidOuncesRegex = createRegexFromTemplate(
+        UNITS.LIQUID.CUPS_FLOZ.PRIMARY,
+        UNITS.LIQUID.CUPS_FLOZ.SECONDARY
+    );
 
-            // Convert based on unit type
-            let liters = 0;
-            switch (unit) {
-                case 'GALLONS':
-                    liters = value * LIQUID_GALLON_TO_L;
-                    break;
-                case 'QUARTS':
-                    liters = value * LIQUID_QUART_TO_L;
-                    break;
-                case 'PINTS':
-                    liters = value * LIQUID_PINT_TO_L;
-                    break;
-                case 'CUPS':
-                    liters = value * LIQUID_CUP_TO_L;
-                    break;
-                case 'FLOZ':
-                    liters = value * LIQUID_FLOZ_TO_L;
-                    break;
-                case 'TBSP':
-                    liters = value * LIQUID_TBSP_TO_L;
-                    break;
-                case 'TSP':
-                    liters = value * LIQUID_TSP_TO_L;
-                    break;
-            }
+    converted = converted.replace(cupsFluidOuncesRegex, function (match) {
+        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.CUPS_FLOZ);
+        const liters =
+            parsed.primary.value * LIQUID_CUP_TO_L + parsed.secondary.value * LIQUID_FLOZ_TO_L;
+        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+    });
 
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-        });
+    const tablespoonsTeaspoonsRegex = createRegexFromTemplate(
+        UNITS.LIQUID.TBSP_TSP.PRIMARY,
+        UNITS.LIQUID.TBSP_TSP.SECONDARY
+    );
+
+    converted = converted.replace(tablespoonsTeaspoonsRegex, function (match) {
+        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.TBSP_TSP);
+        const liters =
+            parsed.primary.value * LIQUID_TBSP_TO_L + parsed.secondary.value * LIQUID_TSP_TO_L;
+        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+    });
+
+    // Convert standalone gallons
+    const gallonsRegex = createRegexFromTemplate(UNITS.LIQUID.GALLONS.PRIMARY, '');
+
+    converted = converted.replace(gallonsRegex, function (match) {
+        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS);
+        const liters = parsed.primary.value * LIQUID_GALLON_TO_L;
+        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+    });
+
+    // Convert standalone quarts
+    const quartsRegex = createRegexFromTemplate(UNITS.LIQUID.QUARTS.PRIMARY, '');
+
+    converted = converted.replace(quartsRegex, function (match) {
+        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.QUARTS);
+        const liters = parsed.primary.value * LIQUID_QUART_TO_L;
+        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+    });
+
+    // Convert standalone pints
+    const pintsRegex = createRegexFromTemplate(UNITS.LIQUID.PINTS.PRIMARY, '');
+
+    converted = converted.replace(pintsRegex, function (match) {
+        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.PINTS);
+        const liters = parsed.primary.value * LIQUID_PINT_TO_L;
+        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
     });
 
     return converted;
@@ -447,10 +475,11 @@ function convertText(text) {
     // Route to appropriate conversion function based on unit type
     if (containsUnits(text, UNITS.LENGTH)) {
         converted = convertLengthText(text);
+    } else if (containsUnits(text, UNITS.LIQUID)) {
+        // needs to come before weight, since it will otherwise match "fl oz"
+        converted = convertLiquidText(text);
     } else if (containsUnits(text, UNITS.WEIGHT)) {
         converted = convertWeightText(text);
-    } else if (containsUnits(text, UNITS.LIQUID)) {
-        converted = convertLiquidText(text);
     }
 
     return converted;
