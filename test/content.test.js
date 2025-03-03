@@ -14,9 +14,9 @@ describe('Basic Regex Tests', () => {
             2   1/2   in of pipe
         `;
 
-        const match = testString.match(createRegexFromTemplate('lb|lbs|ft', 'oz|ounce|in', 'lb|lbs|oz|ounce'));
+        const match = testString.match(createRegexFromTemplate('lb|lbs|ft', 'oz|ounce|in'));
         console.log(match);
-        expect(match).toEqual(['5 ounce', '3 lb 2 ⅔ oz', ' ½ oz', '4 lb 4 ⅔ oz', '2 lbs 1⅔ oz', '6 ft 2 in']);
+        expect(match).toEqual(['5 ounce', '3 lb 2 ⅔ oz', ' ½ oz', '4 lb 4 ⅔ oz', '2 lbs 1⅔ oz', '6 ft 2 in', '2   1/2   in']);
     });
 });
 

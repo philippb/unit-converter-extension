@@ -101,11 +101,11 @@ function convertToDecimal(value) {
     return NaN;
 }
 
-function createRegexFromTemplate(unitBig, unitSmall, unitCombined) {
+function createRegexFromTemplate(unitBig, unitSmall = '') {
     // Replace placeholders in template with actual unit patterns
     let regexStr = MEASUREMENT_REGEX_TEMPLATE.replace('{{UNIT_BIG}}', unitBig || '')
         .replace('{{UNIT_SMALL}}', unitSmall || '')
-        .replaceAll('{{UNIT_COMBINED}}', unitCombined || '');
+        .replaceAll('{{UNIT_COMBINED}}', `${unitBig}|${unitSmall}` || '');
 
     return new RegExp(regexStr, 'giu');
 }
@@ -220,8 +220,7 @@ function convertLengthText(text) {
     // Convert feet-inches combinations
     const feetInchesRegex = createRegexFromTemplate(
         UNITS.LENGTH.FEET_INCHES.PRIMARY,
-        UNITS.LENGTH.FEET_INCHES.SECONDARY,
-        `${UNITS.LENGTH.FEET_INCHES.PRIMARY}|${UNITS.LENGTH.FEET_INCHES.SECONDARY}`
+        UNITS.LENGTH.FEET_INCHES.SECONDARY
     );
 
     converted = converted.replace(feetInchesRegex, function (match) {
@@ -231,7 +230,7 @@ function convertLengthText(text) {
     });
 
     // Convert standalone miles
-    const milesRegex = createRegexFromTemplate(UNITS.LENGTH.MILES.PRIMARY, '', '');
+    const milesRegex = createRegexFromTemplate(UNITS.LENGTH.MILES.PRIMARY, '');
 
     converted = converted.replace(milesRegex, function (match) {
         const parsed = parseMeasurementMatch(match, UNITS.LENGTH.MILES);
@@ -322,11 +321,7 @@ function formatWeightMeasurement(grams) {
 function convertWeightText(text) {
     let converted = text;
 
-    const weightRegex = createRegexFromTemplate(
-        UNITS.WEIGHT.PRIMARY,
-        UNITS.WEIGHT.SECONDARY,
-        `${UNITS.WEIGHT.PRIMARY}|${UNITS.WEIGHT.SECONDARY}`
-    );
+    const weightRegex = createRegexFromTemplate(UNITS.WEIGHT.PRIMARY, UNITS.WEIGHT.SECONDARY);
 
     converted = converted.replace(weightRegex, function (match) {
         const parsed = parseMeasurementMatch(match, UNITS.WEIGHT);
@@ -379,7 +374,7 @@ function convertLiquidText(text) {
 
     // Handle each liquid measurement type
     Object.entries(UNITS.LIQUID).forEach(([unit, pattern]) => {
-        const regex = createRegexFromTemplate('', '', pattern);
+        const regex = createRegexFromTemplate(pattern);
 
         converted = converted.replace(regex, function (match) {
             const parts = match.trim().split(/\s+/);
