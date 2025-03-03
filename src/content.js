@@ -473,13 +473,15 @@ function convertText(text) {
     };
 
     // Route to appropriate conversion function based on unit type
-    if (containsUnits(text, UNITS.LENGTH)) {
+    if (containsUnits(converted, UNITS.LENGTH)) {
         converted = convertLengthText(text);
-    } else if (containsUnits(text, UNITS.LIQUID)) {
+    }
+    if (containsUnits(converted, UNITS.LIQUID)) {
         // needs to come before weight, since it will otherwise match "fl oz"
-        converted = convertLiquidText(text);
-    } else if (containsUnits(text, UNITS.WEIGHT)) {
-        converted = convertWeightText(text);
+        converted = convertLiquidText(converted);
+    }
+    if (containsUnits(converted, UNITS.WEIGHT)) {
+        converted = convertWeightText(converted);
     }
 
     return converted;
