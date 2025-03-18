@@ -30,6 +30,9 @@ detailed_description: |
     • Scientists who facepalm every time they see imperial units
     • Americans who want to secretly learn metric without anyone knowing 🤫
 
+    Privacy Information:
+    This extension requires permission to read the content of websites you visit in order to identify and convert imperial measurements. However, the extension does not have network access and cannot send any data to external servers. All conversions happen locally on your device. The code is completely open source and available for review at www.github.com/philippb/imperial-metric-extension for anyone who wishes to verify these privacy claims.
+
     Whether you're trying to figure out if you need a sweater in Fahrenheit land, or you're an American wondering why your international friends get excited about 21°C beach days - we've got your back! Join the revolution of making measurements less mysterious, one conversion at a time! 🌡️📏⚖️
 
 # Image placeholders
@@ -39,11 +42,11 @@ images:
         alt: 'Extension icon showing unit conversion symbol'
 
     screenshots:
-        - path: 'store-screenshots/screenshot1.png'
+        - path: 'store-details/store-screenshots/screenshot1.png'
           alt: 'Screenshot showing temperature conversion on a weather website'
-        - path: 'store-screenshots/screenshot2.png'
+        - path: 'store-details/store-screenshots/screenshot2.png'
           alt: 'Screenshot showing recipe measurements conversion'
-        - path: 'store-screenshots/screenshot3.png'
+        - path: 'store-details/store-screenshots/screenshot3.png'
           alt: 'Screenshot showing distance conversion on a maps website'
 
 # Store categories and metadata
