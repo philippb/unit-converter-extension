@@ -1,5 +1,53 @@
+# Dependencies
 node_modules/
+
+# Testing
 coverage/
-.DS_Store 
-*.zip
+
+# Build output
 dist/
+
+# Xcode
+xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# Safari extension generated files
+dist/safari/
+*.moved-aside
+*.xccheckout
+
+# Certificates and signing identities
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.entitlements
+
+# Xcode auto-generated files
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor directories and files
+.idea/
+.vscode/*
+!.vscode/launch.json
+*.swp
+*.swo
+
+# Archives
+*.zip
+*.tar.gz
+*.tgz
