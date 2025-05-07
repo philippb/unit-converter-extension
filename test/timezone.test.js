@@ -27,23 +27,23 @@ describe('Timezone Conversion Tests', () => {
     
     describe('Time Conversion', () => {
         test('converts 12-hour format times correctly', () => {
-            expect(convertTimeToPST(12, 0, 'pm', 'EST')).toBe('9 am PST');
-            expect(convertTimeToPST(1, 30, 'pm', 'EST')).toBe('10:30 am PST');
-            expect(convertTimeToPST(9, 0, 'am', 'EST')).toBe('6 am PST');
-            expect(convertTimeToPST(11, 45, 'pm', 'EST')).toBe('8:45 pm PST');
+            expect(convertTimeToPST(12, 0, 'pm', 'EST')).toBe('9 am PT');
+            expect(convertTimeToPST(1, 30, 'pm', 'EST')).toBe('10:30 am PT');
+            expect(convertTimeToPST(9, 0, 'am', 'EST')).toBe('6 am PT');
+            expect(convertTimeToPST(11, 45, 'pm', 'EST')).toBe('8:45 pm PT');
             
-            expect(convertTimeToPST(12, 0, 'pm', 'GMT+5')).toBe('11 pm PST'); // Previous day
-            expect(convertTimeToPST(8, 0, 'am', 'GMT+5')).toBe('7 pm PST'); // Previous day
+            expect(convertTimeToPST(12, 0, 'pm', 'GMT+5')).toBe('11 pm PT'); // Previous day
+            expect(convertTimeToPST(8, 0, 'am', 'GMT+5')).toBe('7 pm PT'); // Previous day
         });
         
         test('converts 24-hour format times correctly', () => {
-            expect(convertTimeToPST(12, 0, null, 'EST')).toBe('9 am PST');
-            expect(convertTimeToPST(13, 30, null, 'EST')).toBe('10:30 am PST');
-            expect(convertTimeToPST(9, 0, null, 'EST')).toBe('6 am PST');
-            expect(convertTimeToPST(23, 45, null, 'EST')).toBe('8:45 pm PST');
+            expect(convertTimeToPST(12, 0, null, 'EST')).toBe('9 am PT');
+            expect(convertTimeToPST(13, 30, null, 'EST')).toBe('10:30 am PT');
+            expect(convertTimeToPST(9, 0, null, 'EST')).toBe('6 am PT');
+            expect(convertTimeToPST(23, 45, null, 'EST')).toBe('8:45 pm PT');
             
-            expect(convertTimeToPST(12, 0, null, 'GMT+5')).toBe('11 pm PST');
-            expect(convertTimeToPST(8, 0, null, 'GMT+5')).toBe('7 pm PST');
+            expect(convertTimeToPST(12, 0, null, 'GMT+5')).toBe('11 pm PT');
+            expect(convertTimeToPST(8, 0, null, 'GMT+5')).toBe('7 pm PT');
         });
     });
     
@@ -52,23 +52,23 @@ describe('Timezone Conversion Tests', () => {
             const testCases = [
                 {
                     input: "Let's meet at 12 pm EST",
-                    expected: "Let's meet at 12 pm EST (9 am PST)"
+                    expected: "Let's meet at 12 pm EST (9 am PT)"
                 },
                 {
                     input: "The meeting starts at 9:30 am CST",
-                    expected: "The meeting starts at 9:30 am CST (7:30 am PST)"
+                    expected: "The meeting starts at 9:30 am CST (7:30 am PT)"
                 },
                 {
                     input: "Conference call at 3 pm GMT+5",
-                    expected: "Conference call at 3 pm GMT+5 (2 am PST)"
+                    expected: "Conference call at 3 pm GMT+5 (2 am PT)"
                 },
                 {
                     input: "Webinar begins at 14:00 EST",
-                    expected: "Webinar begins at 14:00 EST (11 am PST)"
+                    expected: "Webinar begins at 14:00 EST (11 am PT)"
                 },
                 {
                     input: "Call scheduled for 23:30 UTC-4",
-                    expected: "Call scheduled for 23:30 UTC-4 (7:30 pm PST)"
+                    expected: "Call scheduled for 23:30 UTC-4 (7:30 pm PT)"
                 }
             ];
             
@@ -81,11 +81,11 @@ describe('Timezone Conversion Tests', () => {
             const testCases = [
                 {
                     input: "Let's meet at 12 pm EST",
-                    expected: "Let's meet at 12 pm EST (9 am PST)"
+                    expected: "Let's meet at 12 pm EST (9 am PT)"
                 },
                 {
                     input: "The meeting starts at 9:30 am CST",
-                    expected: "The meeting starts at 9:30 am CST (7:30 am PST)"
+                    expected: "The meeting starts at 9:30 am CST (7:30 am PT)"
                 }
             ];
             
@@ -100,11 +100,11 @@ describe('Timezone Conversion Tests', () => {
             const cases = [
                 {
                     input: 'First call at 10 am EST, second at 2 pm CST',
-                    expected: 'First call at 10 am EST (7 am PST), second at 2 pm CST (12 pm PST)'
+                    expected: 'First call at 10 am EST (7 am PT), second at 2 pm CST (12 pm PT)'
                 },
                 {
                     input: 'Meeting schedule: 9:00 EST, 14:30 GMT+5',
-                    expected: 'Meeting schedule: 9:00 EST (6 am PST), 14:30 GMT+5 (1:30 am PST)'
+                    expected: 'Meeting schedule: 9:00 EST (6 am PT), 14:30 GMT+5 (1:30 am PT)'
                 }
             ];
             
@@ -116,7 +116,7 @@ describe('Timezone Conversion Tests', () => {
         });
         
         test('does not convert text already containing conversions', () => {
-            const input = "Let's meet at 12 pm EST (9 am PST)";
+            const input = "Let's meet at 12 pm EST (9 am PT)";
             document.body.textContent = input;
             processNode(document.body);
             expect(document.body.textContent).toBe(input);

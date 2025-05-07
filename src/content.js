@@ -62,7 +62,7 @@ const UNITS = {
 const UNICODE_FRACTIONS = '½¼¾⅓⅔⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒';
 const MEASUREMENT_REGEX_TEMPLATE = String.raw`\b(?:(?:(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:{{UNIT_COMBINED}}))))\b(?!\s*\(.*\))`;
 
-const TIME_REGEX = String.raw`\b(?:(?:1[0-2]|0?[1-9])(?:\s*:\s*[0-5][0-9])?\s*(?:am|pm)|(?:2[0-3]|[01]?[0-9])(?:\s*:\s*[0-5][0-9]))\s+(EST|CST|MST|PST|EDT|CDT|MDT|PDT|GMT[-+]\d+|UTC[-+]\d+)\b(?!\s*\([^)]*\))`;
+const TIME_REGEX = String.raw`\b(?:(?:1[0-2]|0?[1-9])(?:\s*:\s*[0-5][0-9])?\s*(?:am|pm)|(?:2[0-3]|[01]?[0-9])(?:\s*:\s*[0-5][0-9]))\s+(${UNITS.TIME.TIMEZONE.PRIMARY})\b(?!\s*\([^)]*\))`;
 
 /**
  * Converts a string representation of a number (including mixed numbers, fractions, and unicode fractions) to a decimal value
@@ -482,8 +482,9 @@ function parseTimezoneOffset(timezone) {
     return TIMEZONE_OFFSETS[timezone] || 0;
 }
 
-// Convert time from source timezone to PST
+// Convert time from source timezone to PT (Pacific Time)
 function convertTimeToPST(hour, minute, ampm, sourceTimezone) {
+    // Convert to 24-hour format
     let hour24 = hour;
     if (ampm) {
         if (ampm.toLowerCase() === 'pm' && hour < 12) {
@@ -494,38 +495,45 @@ function convertTimeToPST(hour, minute, ampm, sourceTimezone) {
     }
 
     const sourceOffset = parseTimezoneOffset(sourceTimezone);
-    const pstOffset = -8; // PST is UTC-8
 
-    // Convert to UTC then to PST
-    let utcHour = (hour24 - sourceOffset) % 24;
-    let pstHour = (utcHour + pstOffset) % 24;
+    // Convert to GMT (baseline timezone)
+    let gmtHour = (hour24 - sourceOffset) % 24;
 
-    // Handle day wraparound
-    if (pstHour < 0) {
-        pstHour += 24;
+    // Handle day wraparound for GMT conversion
+    if (gmtHour < 0) {
+        gmtHour += 24;
+    }
+
+    // Convert from GMT to PT (Pacific Time, UTC-8)
+    const ptOffset = -8;
+    let ptHour = (gmtHour + ptOffset) % 24;
+
+    // Handle day wraparound for PT conversion
+    if (ptHour < 0) {
+        ptHour += 24;
     }
 
     // Convert back to 12-hour format for display
-    let displayHour = pstHour % 12;
+    let displayHour = ptHour % 12;
     if (displayHour === 0) {
         displayHour = 12;
     }
 
-    const displayAmPm = pstHour < 12 ? 'am' : 'pm';
+    const displayAmPm = ptHour < 12 ? 'am' : 'pm';
 
     // Format the time
     let result = `${displayHour}`;
     if (minute > 0) {
         result += `:${minute.toString().padStart(2, '0')}`;
     }
-    result += ` ${displayAmPm} PST`;
+    result += ` ${displayAmPm} PT`;
 
     return result;
 }
 
 function convertTimezoneText(text) {
     // Check if the text already contains a timezone conversion pattern
-    if (text.match(/\(\d+(?::\d+)?\s*(?:am|pm)\s+PST\)/i)) {
+    if (text.match(/\(\d+(?::\d+)?\s*(?:am|pm)\s+PT\)/i)) {
         return text; // Skip conversion if already converted
     }
 
