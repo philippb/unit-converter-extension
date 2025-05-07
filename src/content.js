@@ -51,11 +51,52 @@ const UNITS = {
             PRIMARY: 'teaspoons|teaspoon|tsp|ts',
         },
     },
+    // Time zone patterns
+    TIME_ZONE: {
+        // Standard abbreviations
+        ABBREVIATIONS: {
+            // US Time Zones
+            EST: 'EST', // Eastern Standard Time (UTC-5)
+            CST: 'CST', // Central Standard Time (UTC-6)
+            MST: 'MST', // Mountain Standard Time (UTC-7)
+            PST: 'PST', // Pacific Standard Time (UTC-8)
+            EDT: 'EDT', // Eastern Daylight Time (UTC-4)
+            CDT: 'CDT', // Central Daylight Time (UTC-5)
+            MDT: 'MDT', // Mountain Daylight Time (UTC-6)
+            PDT: 'PDT', // Pacific Daylight Time (UTC-7)
+            // Other common abbreviations
+            GMT: 'GMT', // Greenwich Mean Time (UTC+0)
+            UTC: 'UTC', // Coordinated Universal Time (UTC+0)
+        },
+        // GMT/UTC offset format
+        OFFSET: 'GMT|UTC',
+    },
 };
 
 // @ai:keep
 const UNICODE_FRACTIONS = '½¼¾⅓⅔⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒';
 const MEASUREMENT_REGEX_TEMPLATE = String.raw`\b(?:(?:(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:{{UNIT_COMBINED}}))))\b(?!\s*\(.*\))`;
+
+// New regex pattern for time with timezone
+const TIME_REGEX = String.raw`\b(?:(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?\s*(?:am|pm)|(?:2[0-3]|[01]?[0-9])(?::[0-5][0-9])(?::[0-5][0-9])?)(?:\s+)(?:(?:EST|CST|MST|PST|EDT|CDT|MDT|PDT)|(?:GMT|UTC)(?:\s*[+-]\s*\d+(?::[0-5][0-9])?)?)\b(?!\s*\(.*\))`;
+
+// Offset hours from UTC for common timezones (ignoring daylight saving time)
+const TIME_ZONE_OFFSETS = {
+    EST: -5, // Eastern Standard Time
+    CST: -6, // Central Standard Time
+    MST: -7, // Mountain Standard Time
+    PST: -8, // Pacific Standard Time
+    EDT: -4, // Eastern Daylight Time
+    CDT: -5, // Central Daylight Time
+    MDT: -6, // Mountain Daylight Time
+    PDT: -7, // Pacific Daylight Time
+    GMT: 0, // Greenwich Mean Time
+    UTC: 0, // Coordinated Universal Time
+};
+
+// Target timezone for conversion (PST = UTC-8)
+const TARGET_TIMEZONE = 'PST';
+const TARGET_TIMEZONE_OFFSET = -8;
 
 /**
  * Converts a string representation of a number (including mixed numbers, fractions, and unicode fractions) to a decimal value
@@ -449,7 +490,139 @@ function convertLiquidText(text) {
     return converted;
 }
 
-// Update the main convertText function to handle liquid measurements
+/**
+ * Converts a time from one timezone to another
+ * @param {string} timeStr - Time string (e.g., "12:30 pm")
+ * @param {string} sourceTimezone - Source timezone abbreviation
+ * @param {number} sourceOffset - Optional offset for GMT/UTC formats
+ * @returns {string} - Time in target timezone
+ */
+function convertTimeZone(timeStr, sourceTimezone, sourceOffset = null) {
+    // Parse the time string
+    let hours = 0;
+    let minutes = 0;
+    let isPM = false;
+
+    // Check for AM/PM format
+    const ampmMatch = timeStr.match(/(\d+)(?::(\d+))?(?::(\d+))?\s*(am|pm)/i);
+    if (ampmMatch) {
+        hours = parseInt(ampmMatch[1], 10);
+        minutes = ampmMatch[2] ? parseInt(ampmMatch[2], 10) : 0;
+        isPM = ampmMatch[4].toLowerCase() === 'pm';
+
+        // Convert to 24-hour format
+        if (isPM && hours < 12) {
+            hours += 12;
+        } else if (!isPM && hours === 12) {
+            hours = 0;
+        }
+    } else {
+        // 24-hour format
+        const timeMatch = timeStr.match(/(\d+)(?::(\d+))?(?::(\d+))?/);
+        if (timeMatch) {
+            hours = parseInt(timeMatch[1], 10);
+            minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+        }
+    }
+
+    // Get source timezone offset
+    let tzOffset = 0;
+    if (sourceOffset !== null) {
+        tzOffset = sourceOffset;
+    } else if (TIME_ZONE_OFFSETS[sourceTimezone]) {
+        tzOffset = TIME_ZONE_OFFSETS[sourceTimezone];
+    }
+
+    // Convert to UTC
+    const sourceMinutesFromUTC = hours * 60 + minutes - tzOffset * 60;
+
+    // Convert to target timezone
+    const targetMinutesFromUTC = sourceMinutesFromUTC + TARGET_TIMEZONE_OFFSET * 60;
+
+    // Calculate hours and minutes in target timezone
+    let targetHours = Math.floor(targetMinutesFromUTC / 60);
+    // Handle day wrapping
+    while (targetHours < 0) targetHours += 24;
+    targetHours = targetHours % 24;
+
+    // Calculate minutes, ensuring they're positive
+    let targetMinutes = targetMinutesFromUTC % 60;
+    if (targetMinutes < 0) targetMinutes += 60;
+
+    // Format the result in 12-hour format
+    let targetAmPm = 'am';
+    if (targetHours >= 12) {
+        targetAmPm = 'pm';
+        if (targetHours > 12) {
+            targetHours -= 12;
+        }
+    } else if (targetHours === 0) {
+        targetHours = 12;
+    }
+
+    // Format minutes with leading zero if needed
+    const formattedMinutes = targetMinutes.toString().padStart(2, '0');
+
+    // Return formatted time
+    return `${targetHours}${formattedMinutes > 0 && formattedMinutes !== '00' ? `:${formattedMinutes}` : ''} ${targetAmPm}`;
+}
+
+/**
+ * Converts timezone expressions in text
+ * @param {string} text - The input text
+ * @returns {string} - Text with converted timezones
+ */
+function convertTimeZoneText(text) {
+    let converted = text;
+
+    // Create regex for matching time expressions with timezone
+    const timeRegex = new RegExp(TIME_REGEX, 'gi');
+
+    // Replace all time expressions
+    converted = converted.replace(timeRegex, function (match) {
+        // Extract the time and timezone parts from the match
+        const timeAndTzParts = match.match(
+            /^(.*?)(\s+)((?:EST|CST|MST|PST|EDT|CDT|MDT|PDT)|(?:GMT|UTC)(?:\s*[+-]\s*\d+(?::[0-5][0-9])?)?)$/
+        );
+
+        if (!timeAndTzParts) return match;
+
+        const time = timeAndTzParts[1];
+        const timezoneWithMaybeOffset = timeAndTzParts[3];
+
+        // Extract timezone abbreviation and potential offset
+        const tzParts = timezoneWithMaybeOffset.match(
+            /^(EST|CST|MST|PST|EDT|CDT|MDT|PDT|GMT|UTC)(?:\s*([+-])\s*(\d+)(?::(\d+))?)?$/i
+        );
+
+        if (!tzParts) return match;
+
+        const tz = tzParts[1].toUpperCase();
+
+        // Don't convert if the timezone is already PST
+        if (tz === TARGET_TIMEZONE) {
+            return match;
+        }
+
+        let offset = null;
+
+        // Handle GMT/UTC offsets
+        if (tzParts[2] && tzParts[3]) {
+            const sign = tzParts[2] === '+' ? 1 : -1;
+            const hours = parseInt(tzParts[3], 10);
+            const minutes = tzParts[4] ? parseInt(tzParts[4], 10) / 60 : 0;
+            offset = sign * (hours + minutes);
+        }
+
+        // Convert to target timezone
+        const convertedTime = convertTimeZone(time, tz, offset);
+        return `${match} (${convertedTime} ${TARGET_TIMEZONE})`;
+    });
+
+    return converted;
+}
+
+// Update the main convertText function to handle time zones
 function convertText(text) {
     let converted = text;
 
@@ -474,7 +647,7 @@ function convertText(text) {
 
     // Route to appropriate conversion function based on unit type
     if (containsUnits(converted, UNITS.LENGTH)) {
-        converted = convertLengthText(text);
+        converted = convertLengthText(converted);
     }
     if (containsUnits(converted, UNITS.LIQUID)) {
         // needs to come before weight, since it will otherwise match "fl oz"
@@ -482,6 +655,12 @@ function convertText(text) {
     }
     if (containsUnits(converted, UNITS.WEIGHT)) {
         converted = convertWeightText(converted);
+    }
+
+    // Check for time zone expressions
+    const hasTimeZone = new RegExp(TIME_REGEX, 'i').test(converted);
+    if (hasTimeZone) {
+        converted = convertTimeZoneText(converted);
     }
 
     return converted;
@@ -494,6 +673,7 @@ if (typeof exports !== 'undefined') {
         convertLengthText,
         convertWeightText,
         convertLiquidText,
+        convertTimeZoneText,
         processNode,
         formatLengthMeasurement,
         formatWeightMeasurement,
@@ -502,5 +682,6 @@ if (typeof exports !== 'undefined') {
         convertToDecimal,
         createRegexFromTemplate,
         parseMeasurementMatch,
+        convertTimeZone,
     });
 }

@@ -970,3 +970,179 @@ describe('Additional Edge Cases', () => {
         });
     });
 });
+
+describe('Time Zone Conversion Tests', () => {
+    const { convertTimeZone, convertTimeZoneText } = require('../src/content.js');
+
+    describe('convertTimeZone Function', () => {
+        test('converts from EST to PST', () => {
+            expect(convertTimeZone('12 pm', 'EST')).toBe('9 am');
+            expect(convertTimeZone('12:30 pm', 'EST')).toBe('9:30 am');
+            expect(convertTimeZone('1 pm', 'EST')).toBe('10 am');
+            expect(convertTimeZone('3:45 pm', 'EST')).toBe('12:45 pm');
+            expect(convertTimeZone('9 am', 'EST')).toBe('6 am');
+            expect(convertTimeZone('11:59 pm', 'EST')).toBe('8:59 pm');
+        });
+
+        test('converts from CST to PST', () => {
+            expect(convertTimeZone('12 pm', 'CST')).toBe('10 am');
+            expect(convertTimeZone('1:30 pm', 'CST')).toBe('11:30 am');
+            expect(convertTimeZone('6 am', 'CST')).toBe('4 am');
+        });
+
+        test('converts from MST to PST', () => {
+            expect(convertTimeZone('12 pm', 'MST')).toBe('11 am');
+            expect(convertTimeZone('2:15 pm', 'MST')).toBe('1:15 pm');
+            expect(convertTimeZone('5:30 am', 'MST')).toBe('4:30 am');
+        });
+
+        test('converts from GMT/UTC to PST', () => {
+            expect(convertTimeZone('12 pm', 'GMT')).toBe('4 am');
+            expect(convertTimeZone('8 pm', 'UTC')).toBe('12 pm');
+            expect(convertTimeZone('3:30 am', 'GMT')).toBe('7:30 pm'); // Previous day in PST
+        });
+
+        test('converts from GMT/UTC with offsets', () => {
+            expect(convertTimeZone('12 pm', 'GMT', 2)).toBe('2 am'); // GMT+2 to PST
+            expect(convertTimeZone('3 pm', 'UTC', -3)).toBe('10 am'); // UTC-3 to PST
+            expect(convertTimeZone('10 pm', 'GMT', 5)).toBe('9 am'); // GMT+5 to PST
+        });
+
+        test('handles 24-hour format', () => {
+            expect(convertTimeZone('13:00', 'EST')).toBe('10 am');
+            expect(convertTimeZone('23:45', 'CST')).toBe('9:45 pm');
+            expect(convertTimeZone('00:30', 'GMT')).toBe('4:30 pm'); // Previous day in PST
+        });
+    });
+
+    describe('convertTimeZoneText Function', () => {
+        test('converts simple time expressions with timezone', () => {
+            expect(convertTimeZoneText('Let\'s meet at 12 pm EST')).toBe('Let\'s meet at 12 pm EST (9 am PST)');
+            expect(convertTimeZoneText('The meeting is at 3:30 pm CST')).toBe('The meeting is at 3:30 pm CST (1:30 pm PST)');
+            expect(convertTimeZoneText('Event starts at 9 am GMT')).toBe('Event starts at 9 am GMT (1 am PST)');
+        });
+
+        test('converts multiple time expressions in text', () => {
+            expect(convertTimeZoneText('First call at 10 am EST, second call at 2 pm PST')).toBe(
+                'First call at 10 am EST (7 am PST), second call at 2 pm PST'
+            );
+        });
+
+        test('handles GMT/UTC with offsets', () => {
+            expect(convertTimeZoneText('Meeting in Berlin at 2 pm GMT+1')).toBe('Meeting in Berlin at 2 pm GMT+1 (5 am PST)');
+            expect(convertTimeZoneText('Call with India at 11 am GMT+5:30')).toBe('Call with India at 11 am GMT+5:30 (9:30 pm PST)');
+            expect(convertTimeZoneText('Buenos Aires office at 3 pm GMT-3')).toBe('Buenos Aires office at 3 pm GMT-3 (10 am PST)');
+        });
+
+        test('only converts expressions with explicit timezone', () => {
+            expect(convertTimeZoneText('Meeting at 3 pm, lunch at 12 pm EST')).toBe('Meeting at 3 pm, lunch at 12 pm EST (9 am PST)');
+            expect(convertTimeZoneText('Wake up at 6 am, call at 9 am CST')).toBe('Wake up at 6 am, call at 9 am CST (7 am PST)');
+        });
+    });
+
+    describe('Time Zone Integration Tests', () => {
+        beforeEach(() => {
+            document.body.innerHTML = '';
+        });
+
+        test('does not convert times without timezone', () => {
+            expect(convertTimeZoneText('Call at 12 pm')).toBe('Call at 12 pm');
+        });
+
+        test('converts time zones in DOM nodes', () => {
+            const testCases = [
+                {
+                    input: 'Let\'s meet at 12 pm EST',
+                    expected: 'Let\'s meet at 12 pm EST (9 am PST)'
+                },
+                {
+                    input: 'The meeting starts at 10:30 am CST and ends at 12 pm CST',
+                    expected: 'The meeting starts at 10:30 am CST (8:30 am PST) and ends at 12 pm CST (10 am PST)'
+                },
+                {
+                    input: 'Call scheduled for 8 pm GMT+2',
+                    expected: 'Call scheduled for 8 pm GMT+2 (10 am PST)'
+                },
+                {
+                    input: 'Call scheduled for 8 pm PST',
+                    expected: 'Call scheduled for 8 pm PST'
+                },
+            ];
+
+            testCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles time formats correctly', () => {
+            const formatCases = [
+                {
+                    input: 'Meeting at 9:15 am EST',
+                    expected: 'Meeting at 9:15 am EST (6:15 am PST)'
+                },
+                {
+                    input: 'Call time: 14:30 UTC',
+                    expected: 'Call time: 14:30 UTC (6:30 am PST)'
+                },
+                {
+                    input: 'Starts at 11 pm EDT',
+                    expected: 'Starts at 11 pm EDT (7 pm PST)'
+                }
+            ];
+
+            formatCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('handles spacing variations in timezone formats', () => {
+            const spacingCases = [
+                {
+                    input: 'Meeting at 10 am GMT+2',
+                    expected: 'Meeting at 10 am GMT+2 (12 am PST)'
+                },
+                {
+                    input: 'Call at 3 pm GMT +3',
+                    expected: 'Call at 3 pm GMT +3 (4 am PST)'
+                },
+                {
+                    input: 'Conference at 1 pm UTC + 5:30',
+                    expected: 'Conference at 1 pm UTC + 5:30 (11:30 pm PST)'
+                },
+                {
+                    input: 'Webinar at 11 am GMT - 4',
+                    expected: 'Webinar at 11 am GMT - 4 (7 am PST)'
+                }
+            ];
+
+            spacingCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('does not affect measurements while converting time zones', () => {
+            const mixedContent = [
+                {
+                    input: 'Walk 2 miles at 9 am EST, weigh 150 lbs at 5 pm CST',
+                    expected: 'Walk 2 miles (3.22 km) at 9 am EST (6 am PST), weigh 150 lbs (68.04 kg) at 5 pm CST (3 pm PST)'
+                },
+                {
+                    input: 'Add 3 cups flour at 10:30 am GMT and bake for 5 inches tall',
+                    expected: 'Add 3 cups (0.71 L) flour at 10:30 am GMT (2:30 am PST) and bake for 5 inches (12.7 cm) tall'
+                }
+            ];
+
+            mixedContent.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+});
