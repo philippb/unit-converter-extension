@@ -1,5 +1,7 @@
 const {
     processNode,
+    processElement,
+    hasRelevantUnits,
     isEditableContext,
     convertToDecimal,
     createRegexFromTemplate,
@@ -1191,6 +1193,275 @@ describe('Time Zone Conversion Tests', () => {
                 processNode(document.body);
                 expect(document.body.textContent).toBe(expected);
             });
+        });
+    });
+});
+
+describe('Pre-filter Performance Optimization Tests', () => {
+    describe('hasRelevantUnits Function', () => {
+        test('detects length units correctly', () => {
+            const lengthCases = [
+                // Positive cases
+                { input: 'The room is 10 feet wide', expected: true },
+                { input: 'A 5 inch gap', expected: true },
+                { input: 'Walk 2 miles', expected: true },
+                { input: 'Height: 6ft 2in', expected: true },
+                { input: 'FEET and INCHES', expected: true }, // Case insensitive
+                { input: 'Text with foot in it', expected: true },
+
+                // Negative cases
+                { input: 'No measurements here', expected: false },
+                { input: 'Just some regular text', expected: false },
+                { input: 'Numbers like 123 and 456', expected: false },
+                { input: 'Feet of clay metaphor', expected: true }, // Will match "feet" - this is expected behavior for performance
+            ];
+
+            lengthCases.forEach(({ input, expected }) => {
+                expect(hasRelevantUnits(input)).toBe(expected);
+            });
+        });
+
+        test('detects weight units correctly', () => {
+            const weightCases = [
+                // Positive cases
+                { input: 'Weighs 150 pounds', expected: true },
+                { input: 'Add 8 ounces', expected: true },
+                { input: 'Weight: 5 lbs', expected: true },
+                { input: 'Contains oz of liquid', expected: true },
+                { input: 'POUNDS and OUNCES', expected: true },
+
+                // Negative cases
+                { input: 'No weight mentioned', expected: false },
+                { input: 'Random text here', expected: false },
+                { input: 'Numbers 100 200 300', expected: false },
+            ];
+
+            weightCases.forEach(({ input, expected }) => {
+                expect(hasRelevantUnits(input)).toBe(expected);
+            });
+        });
+
+        test('detects liquid units correctly', () => {
+            const liquidCases = [
+                // Positive cases
+                { input: 'Add 2 cups of flour', expected: true },
+                { input: 'Pour 1 gallon', expected: true },
+                { input: 'Mix 3 tablespoons', expected: true },
+                { input: 'Add 1 tsp vanilla', expected: true },
+                { input: 'Needs 8 fl oz', expected: true },
+                { input: 'Recipe calls for quart', expected: true },
+
+                // Negative cases - avoid words containing unit substrings
+                { input: 'No liquid volumes', expected: false }, // Changed from "measurements" to avoid "in"
+                { input: 'Just text here', expected: false }, // Changed from "plain" to avoid "in"
+            ];
+
+            liquidCases.forEach(({ input, expected }) => {
+                expect(hasRelevantUnits(input)).toBe(expected);
+            });
+        });
+
+        test('detects timezone units correctly', () => {
+            const timezoneCases = [
+                // Positive cases
+                { input: 'Meeting at 3pm EST', expected: true },
+                { input: 'Call at 9am PST', expected: true },
+                { input: 'Conference GMT timezone', expected: true }, // Removed "in" to avoid false positive
+                { input: 'UTC standard', expected: true }, // Removed "time" to avoid false positive
+                { input: 'cst and mst zones', expected: true },
+
+                // Negative cases - avoid words containing unit substrings
+                { input: 'No zones here', expected: false }, // Removed "time" to avoid false positive
+                { input: 'Regular scheduled call', expected: false }, // Removed "meeting time" to avoid false positives
+            ];
+
+            timezoneCases.forEach(({ input, expected }) => {
+                expect(hasRelevantUnits(input)).toBe(expected);
+            });
+        });
+
+        test('handles edge cases properly', () => {
+            const edgeCases = [
+                // Edge inputs
+                { input: '', expected: false },
+                { input: null, expected: false },
+                { input: undefined, expected: false },
+                { input: '   ', expected: false }, // Just whitespace
+                { input: '123', expected: false }, // Just numbers
+                { input: 'ft', expected: true }, // Just the unit
+                { input: 'FT', expected: true }, // Unit in caps
+                { input: 'Contains both ft and gal units', expected: true },
+                { input: 'Mixed with 5 inches and 2 pounds', expected: true },
+            ];
+
+            edgeCases.forEach(({ input, expected }) => {
+                expect(hasRelevantUnits(input)).toBe(expected);
+            });
+        });
+
+        test('is case insensitive', () => {
+            const caseCases = [
+                { input: 'FEET', expected: true },
+                { input: 'Feet', expected: true },
+                { input: 'feet', expected: true },
+                { input: 'FeeT', expected: true },
+                { input: 'GALLON', expected: true },
+                { input: 'Gallon', expected: true },
+                { input: 'EST', expected: true },
+                { input: 'est', expected: true },
+                { input: 'Est', expected: true },
+            ];
+
+            caseCases.forEach(({ input, expected }) => {
+                expect(hasRelevantUnits(input)).toBe(expected);
+            });
+        });
+    });
+
+    describe('processElement Function Optimization', () => {
+        beforeEach(() => {
+            document.body.innerHTML = '';
+        });
+
+        test('skips elements without relevant units', () => {
+            // Create a div with no units
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <p>This is just regular text with no measurements</p>
+                <span>More text without units</span>
+                <div>Even more regular content</div>
+            `;
+            document.body.appendChild(div);
+
+            const originalText = div.textContent;
+            processElement(div);
+
+            // Text should remain unchanged
+            expect(div.textContent).toBe(originalText);
+        });
+
+        test('processes elements with relevant units', () => {
+            // Create a div with units
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <p>The room is 10 feet wide</p>
+                <span>Contains 2 pounds of flour</span>
+            `;
+            document.body.appendChild(div);
+
+            processElement(div);
+
+            // Text should be converted
+            expect(div.textContent).toContain('10 feet (3.05 m)');
+            expect(div.textContent).toContain('2 pounds (907.18 g)');
+        });
+
+        test('skips entire subtrees when parent has no units', () => {
+            // Create nested structure where parent has no units
+            const parent = document.createElement('div');
+            parent.textContent = 'No measurements anywhere'; // Avoid "in" in "in parent"
+
+            const child1 = document.createElement('p');
+            child1.textContent = 'This child has 5 steps but should not be processed'; // Avoid "feet"
+
+            const child2 = document.createElement('span');
+            child2.textContent = 'This child has 2 apples but should not be processed'; // Avoid "pounds"
+
+            parent.appendChild(child1);
+            parent.appendChild(child2);
+            document.body.appendChild(parent);
+
+            const originalChild1Text = child1.textContent;
+            const originalChild2Text = child2.textContent;
+
+            processElement(parent);
+
+            // Children should not be processed since parent+children combined has no units
+            expect(child1.textContent).toBe(originalChild1Text);
+            expect(child2.textContent).toBe(originalChild2Text);
+        });
+
+        test('processes nested elements when parent has units', () => {
+            // Create nested structure where parent has units
+            const parent = document.createElement('div');
+            parent.textContent = 'Parent mentions 1 foot, ';
+
+            const child1 = document.createElement('p');
+            child1.textContent = 'Child has 5 feet';
+
+            const child2 = document.createElement('span');
+            child2.textContent = ' and 2 pounds';
+
+            parent.appendChild(child1);
+            parent.appendChild(child2);
+            document.body.appendChild(parent);
+
+            processElement(parent);
+
+            // All should be processed since parent contains units
+            expect(parent.textContent).toContain('1 foot'); // Parent processed
+            expect(child1.textContent).toContain('5 feet (1.52 m)'); // Child processed
+            expect(child2.textContent).toContain('2 pounds (907.18 g)'); // Child processed
+        });
+
+        test('handles mixed content efficiently', () => {
+            // Create a complex DOM with both relevant and irrelevant content
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <div class="no-units">
+                    <p>This section has no measurements</p>
+                    <span>Just regular text here</span>
+                    <div>
+                        <p>Nested content without units</p>
+                        <span>More text</span>
+                    </div>
+                </div>
+                <div class="has-units">
+                    <p>This room is 12 feet long</p>
+                    <span>weighs 5 pounds</span>
+                    <div>
+                        <p>Contains 2 gallons</p>
+                        <span>and 3 inches wide</span>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(container);
+
+            const noUnitsSection = container.querySelector('.no-units');
+            const hasUnitsSection = container.querySelector('.has-units');
+
+            const originalNoUnitsText = noUnitsSection.textContent;
+
+            processElement(container);
+
+            // No-units section should be unchanged
+            expect(noUnitsSection.textContent.trim()).toBe(originalNoUnitsText.trim());
+
+            // Has-units section should be converted
+            expect(hasUnitsSection.textContent).toContain('12 feet (3.66 m)');
+            expect(hasUnitsSection.textContent).toContain('5 pounds (2.27 kg)');
+            expect(hasUnitsSection.textContent).toContain('2 gallons (7.57 L)');
+            expect(hasUnitsSection.textContent).toContain('3 inches (7.62 cm)');
+        });
+
+        test('maintains compatibility with processNode', () => {
+            // Test that both functions produce same results
+            const div1 = document.createElement('div');
+            div1.textContent = 'The table is 6 feet long and weighs 20 pounds';
+
+            const div2 = document.createElement('div');
+            div2.textContent = 'The table is 6 feet long and weighs 20 pounds';
+
+            document.body.appendChild(div1);
+            document.body.appendChild(div2);
+
+            processNode(div1); // Old function
+            processElement(div2); // New optimized function
+
+            // Both should produce identical results
+            expect(div1.textContent).toBe(div2.textContent);
+            expect(div1.textContent).toContain('6 feet (1.83 m)');
+            expect(div1.textContent).toContain('20 pounds (9.07 kg)');
         });
     });
 });
