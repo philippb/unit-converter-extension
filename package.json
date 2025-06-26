@@ -12,7 +12,7 @@
         "build:chrome": "zip -rv dist/extension.zip src/ -x '*.git*' -x 'node_modules/*' -x 'coverage/*' -x '*.zip' -x 'src/safari/*'",
         "init:safari": "mkdir -p src/safari && xcrun safari-web-extension-converter src/ --project-location src/safari --app-name 'Metric Imperial Converter' --bundle-identifier 'com.philippberner.metric-imperial-converter' --no-open",
         "build:safari": "cd src/safari/Metric\\ Imperial\\ Converter && xcodebuild -project 'Metric Imperial Converter.xcodeproj' -scheme 'Metric Imperial Converter (macOS)' -configuration Release",
-        "build:safari-app": "mkdir -p dist/safari && cp -R ~/Library/Developer/Xcode/DerivedData/Metric_Imperial_Converter-*/Build/Products/Release/*.app dist/safari/",
+        "build:safari-app": "mkdir -p dist/safari && cp -R src/safari/Metric\\ Imperial\\ Converter/build/Release/*.app dist/safari/",
         "build": "npm run build:chrome && npm run build:safari && npm run build:safari-app",
         "prepare": "husky install"
     },
