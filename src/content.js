@@ -98,6 +98,62 @@ const TIME_ZONE_OFFSETS = {
 const TARGET_TIMEZONE = 'PST';
 const TARGET_TIMEZONE_OFFSET = -8;
 
+// Fast unit detection keywords for pre-filtering
+const UNIT_KEYWORDS = [
+    // Length units
+    'ft',
+    'feet',
+    'foot',
+    'in',
+    'inch',
+    'inches',
+    'mi',
+    'mile',
+    'miles',
+    // Weight units
+    'lb',
+    'lbs',
+    'pound',
+    'pounds',
+    'oz',
+    'ounce',
+    'ounces',
+    // Liquid units
+    'gal',
+    'gallon',
+    'gallons',
+    'qt',
+    'quart',
+    'quarts',
+    'pt',
+    'pint',
+    'pints',
+    'cup',
+    'cups',
+    'fl oz',
+    'fluid ounce',
+    'fluid ounces',
+    'tbsp',
+    'tablespoon',
+    'tablespoons',
+    'tsp',
+    'teaspoon',
+    'teaspoons',
+    'tbs',
+    'tb',
+    // Time zone abbreviations
+    'est',
+    'cst',
+    'mst',
+    'pst',
+    'edt',
+    'cdt',
+    'mdt',
+    'pdt',
+    'gmt',
+    'utc',
+];
+
 /**
  * Converts a string representation of a number (including mixed numbers, fractions, and unicode fractions) to a decimal value
  * @param {string} value - The string to convert
@@ -313,6 +369,23 @@ function convertLengthText(text) {
     return converted;
 }
 
+/**
+ * Fast pre-filter to check if text contains any relevant units
+ * This avoids expensive regex operations on irrelevant text
+ * @param {string} text - The text to check
+ * @returns {boolean} - True if text might contain convertible units
+ */
+function hasRelevantUnits(text) {
+    if (!text || typeof text !== 'string') {
+        return false;
+    }
+
+    const lowerText = text.toLowerCase();
+
+    // Fast string search - much faster than regex
+    return UNIT_KEYWORDS.some((unit) => lowerText.includes(unit));
+}
+
 function isEditableContext(node) {
     // Walk up the DOM tree to find if we're in an editable context
     let current = node;
@@ -330,38 +403,90 @@ function isEditableContext(node) {
     return false;
 }
 
-function processNode(node) {
+/**
+ * Optimized processing that skips entire element subtrees without relevant units
+ * @param {Node} node - The DOM node to process
+ */
+function processElement(node) {
     // Skip processing if we're in an editable context
     if (isEditableContext(node)) {
         return;
     }
 
-    if (node.nodeType === Node.TEXT_NODE) {
-        const originalText = node.textContent;
-        const newText = convertText(originalText);
-        if (originalText !== newText) {
-            node.textContent = newText;
+    // For element nodes, check entire textContent first to skip whole subtree if no units
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        // Quick check: if element has no text content with units, skip entire subtree
+        if (!hasRelevantUnits(node.textContent)) {
+            return;
         }
-    } else {
+
+        // If element might have units, process its children
         for (const childNode of node.childNodes) {
-            processNode(childNode);
+            processElement(childNode);
+        }
+    } else if (node.nodeType === Node.TEXT_NODE) {
+        const originalText = node.textContent;
+
+        // Fast pre-filter: only process text that might contain relevant units
+        if (hasRelevantUnits(originalText)) {
+            const newText = convertText(originalText);
+            if (originalText !== newText) {
+                node.textContent = newText;
+            }
         }
     }
 }
 
+// Keep old function name for compatibility but use optimized version
+function processNode(node) {
+    processElement(node);
+}
+
+// Performance tracking
+let performanceData = {
+    lastRunTime: 0,
+    totalConversions: 0,
+    startTime: Date.now(),
+};
+
 // Only run the browser-specific code if we're in a browser environment
 if (typeof window !== 'undefined') {
-    // Initial conversion
+    // Initial conversion with timing
+    const startTime = performance.now();
     processNode(document.body);
+    const endTime = performance.now();
+    performanceData.lastRunTime = Math.round((endTime - startTime) * 100) / 100;
 
     // Watch for dynamic content changes
     const observer = new MutationObserver((mutations) => {
+        const mutationStartTime = performance.now();
+        let conversionsInMutation = 0;
+
         for (const mutation of mutations) {
             for (const node of mutation.addedNodes) {
                 if (node.nodeType === Node.ELEMENT_NODE) {
-                    processNode(node);
+                    // Use optimized processing for new nodes
+                    processElement(node);
+                    conversionsInMutation++;
+                } else if (node.nodeType === Node.TEXT_NODE) {
+                    // Handle text nodes directly added
+                    if (hasRelevantUnits(node.textContent)) {
+                        const originalText = node.textContent;
+                        const newText = convertText(originalText);
+                        if (originalText !== newText) {
+                            node.textContent = newText;
+                            conversionsInMutation++;
+                        }
+                    }
                 }
             }
+        }
+
+        const mutationEndTime = performance.now();
+        if (conversionsInMutation > 0) {
+            performanceData.lastRunTime +=
+                Math.round((mutationEndTime - mutationStartTime) * 100) / 100;
+            performanceData.totalConversions += conversionsInMutation;
         }
     });
 
@@ -666,6 +791,23 @@ function convertText(text) {
     return converted;
 }
 
+// Add message listener for popup communication
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+    chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+        if (request.action === 'ping') {
+            sendResponse({
+                status: 'active',
+                performance: {
+                    lastRunTime: performanceData.lastRunTime,
+                    totalConversions: performanceData.totalConversions,
+                    uptime: Date.now() - performanceData.startTime,
+                },
+            });
+        }
+        return true;
+    });
+}
+
 // Make functions available for testing
 if (typeof exports !== 'undefined') {
     Object.assign(exports, {
@@ -675,6 +817,8 @@ if (typeof exports !== 'undefined') {
         convertLiquidText,
         convertTimeZoneText,
         processNode,
+        processElement,
+        hasRelevantUnits,
         formatLengthMeasurement,
         formatWeightMeasurement,
         formatLiquidMeasurement,

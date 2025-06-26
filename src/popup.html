@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Imperial to Metric Converter</title>
+        <link rel="stylesheet" href="popup.css" />
+    </head>
+    <body>
+        <div class="container">
+            <header class="header">
+                <img src="icons/icon48.png" alt="Extension Icon" class="icon" />
+                <h1 class="title">Imperial to Metric</h1>
+                <p class="subtitle">Automatic unit conversion on any webpage</p>
+            </header>
+
+            <main class="content">
+                <div class="status">
+                    <div class="status-indicator active"></div>
+                    <span class="status-text">Extension is active on this page</span>
+                </div>
+
+                <div class="conversions">
+                    <h2 class="section-title">Converts Imperial → Metric</h2>
+
+                    <div class="conversion-category">
+                        <h3 class="category-title">
+                            <span class="category-icon">📏</span>
+                            Length
+                        </h3>
+                        <div class="conversion-examples">
+                            <div class="example">
+                                <span class="from">6 ft 2 in</span>
+                                <span class="arrow">→</span>
+                                <span class="to">1.88 m</span>
+                            </div>
+                            <div class="example">
+                                <span class="from">5 inches</span>
+                                <span class="arrow">→</span>
+                                <span class="to">12.7 cm</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="conversion-category">
+                        <h3 class="category-title">
+                            <span class="category-icon">⚖️</span>
+                            Weight
+                        </h3>
+                        <div class="conversion-examples">
+                            <div class="example">
+                                <span class="from">5 lbs 8 oz</span>
+                                <span class="arrow">→</span>
+                                <span class="to">2.49 kg</span>
+                            </div>
+                            <div class="example">
+                                <span class="from">10 ounces</span>
+                                <span class="arrow">→</span>
+                                <span class="to">283.5 g</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="conversion-category">
+                        <h3 class="category-title">
+                            <span class="category-icon">🥤</span>
+                            Volume
+                        </h3>
+                        <div class="conversion-examples">
+                            <div class="example">
+                                <span class="from">2 gallons</span>
+                                <span class="arrow">→</span>
+                                <span class="to">7.57 L</span>
+                            </div>
+                            <div class="example">
+                                <span class="from">1 cup</span>
+                                <span class="arrow">→</span>
+                                <span class="to">236.59 ml</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="conversion-category">
+                        <h3 class="category-title">
+                            <span class="category-icon">🕐</span>
+                            Time Zones
+                        </h3>
+                        <div class="conversion-examples">
+                            <div class="example">
+                                <span class="from">3 pm EST</span>
+                                <span class="arrow">→</span>
+                                <span class="to">12 pm PST</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <footer class="footer">
+                <p class="footer-text">v1.2 • Auto-converts imperial units</p>
+            </footer>
+        </div>
+
+        <script src="popup.js"></script>
+    </body>
+</html>
