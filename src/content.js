@@ -154,6 +154,15 @@ const UNIT_KEYWORDS = [
     'utc',
 ];
 
+// URL blacklist - domains where the extension should not run
+const URL_BLACKLIST = [
+    /^https?:\/\/.*\.google\./, // All Google domains (google.com, google.de, etc.)
+];
+
+function isBlacklistedUrl(url) {
+    return URL_BLACKLIST.some((pattern) => pattern.test(url));
+}
+
 /**
  * Converts a string representation of a number (including mixed numbers, fractions, and unicode fractions) to a decimal value
  * @param {string} value - The string to convert
@@ -451,8 +460,12 @@ let performanceData = {
 
 // Only run the browser-specific code if we're in a browser environment
 if (typeof window !== 'undefined') {
+    if (isBlacklistedUrl(window.location.href)) {
+        return;
+    }
     // Initial conversion with timing
     const startTime = performance.now();
+
     processNode(document.body);
     const endTime = performance.now();
     performanceData.lastRunTime = Math.round((endTime - startTime) * 100) / 100;
