@@ -442,18 +442,32 @@ function processNode(node) {
     processElement(node);
 }
 
+// Performance tracking
+let performanceData = {
+    lastRunTime: 0,
+    totalConversions: 0,
+    startTime: Date.now(),
+};
+
 // Only run the browser-specific code if we're in a browser environment
 if (typeof window !== 'undefined') {
-    // Initial conversion
+    // Initial conversion with timing
+    const startTime = performance.now();
     processNode(document.body);
+    const endTime = performance.now();
+    performanceData.lastRunTime = Math.round((endTime - startTime) * 100) / 100;
 
     // Watch for dynamic content changes
     const observer = new MutationObserver((mutations) => {
+        const mutationStartTime = performance.now();
+        let conversionsInMutation = 0;
+
         for (const mutation of mutations) {
             for (const node of mutation.addedNodes) {
                 if (node.nodeType === Node.ELEMENT_NODE) {
                     // Use optimized processing for new nodes
                     processElement(node);
+                    conversionsInMutation++;
                 } else if (node.nodeType === Node.TEXT_NODE) {
                     // Handle text nodes directly added
                     if (hasRelevantUnits(node.textContent)) {
@@ -461,10 +475,18 @@ if (typeof window !== 'undefined') {
                         const newText = convertText(originalText);
                         if (originalText !== newText) {
                             node.textContent = newText;
+                            conversionsInMutation++;
                         }
                     }
                 }
             }
+        }
+
+        const mutationEndTime = performance.now();
+        if (conversionsInMutation > 0) {
+            performanceData.lastRunTime +=
+                Math.round((mutationEndTime - mutationStartTime) * 100) / 100;
+            performanceData.totalConversions += conversionsInMutation;
         }
     });
 
@@ -767,6 +789,23 @@ function convertText(text) {
     }
 
     return converted;
+}
+
+// Add message listener for popup communication
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+    chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+        if (request.action === 'ping') {
+            sendResponse({
+                status: 'active',
+                performance: {
+                    lastRunTime: performanceData.lastRunTime,
+                    totalConversions: performanceData.totalConversions,
+                    uptime: Date.now() - performanceData.startTime,
+                },
+            });
+        }
+        return true;
+    });
 }
 
 // Make functions available for testing

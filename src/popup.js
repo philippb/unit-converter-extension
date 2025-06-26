@@ -51,7 +51,7 @@ function checkExtensionStatus() {
                         ? 'Extension is active on this page'
                         : 'Extension not running on this page'
                 );
-                
+
                 // Update performance info if available
                 if (isActive && response.performance) {
                     updatePerformanceInfo(response.performance);
@@ -63,7 +63,7 @@ function checkExtensionStatus() {
 
 function isRestrictedUrl(url) {
     if (!url) return true;
-    
+
     const restrictedProtocols = ['chrome:', 'chrome-extension:', 'moz-extension:', 'edge:'];
     const restrictedDomains = ['chrome.google.com'];
 
@@ -92,9 +92,10 @@ function updateStatus(statusElement, statusText, statusIndicator, isActive, mess
 function updatePerformanceInfo(performance) {
     const footerText = document.querySelector('.footer-text');
     if (footerText && performance.lastRunTime !== undefined) {
-        const runtimeText = performance.lastRunTime < 1 
-            ? `${Math.round(performance.lastRunTime * 1000)}μs`
-            : `${Math.round(performance.lastRunTime)}ms`;
+        const runtimeText =
+            performance.lastRunTime < 1
+                ? `${Math.round(performance.lastRunTime * 1000)}μs`
+                : `${Math.round(performance.lastRunTime)}ms`;
         footerText.textContent = `v1.2 • Auto-converts imperial units • Runtime: ${runtimeText}`;
     }
 }

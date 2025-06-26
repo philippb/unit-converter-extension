@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Imperial to Metric",
-    "version": "1.1",
+    "version": "1.2",
     "description": "Convert American units to metric with ease. Perfect for int users adjusting to US measurements, or Americans exploring metric",
     "permissions": [],
     "host_permissions": ["<all_urls>"],
@@ -10,6 +10,16 @@
         "32": "icons/icon32.png",
         "48": "icons/icon48.png",
         "128": "icons/icon128.png"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "Imperial to Metric Converter",
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "32": "icons/icon32.png",
+            "48": "icons/icon48.png",
+            "128": "icons/icon128.png"
+        }
     },
     "content_scripts": [
         {
