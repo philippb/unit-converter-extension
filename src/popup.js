@@ -42,14 +42,32 @@ function checkExtensionStatus() {
             chrome.tabs.sendMessage(currentTab.id, { action: 'ping' }, function (response) {
                 const isActive =
                     !chrome.runtime.lastError && response && response.status === 'active';
+
+                let statusMessage;
+                if (!isActive) {
+                    statusMessage = 'Extension not running on this page';
+                } else if (response.performance && response.performance.hasRunOnThisPage) {
+                    const timeSinceConversion =
+                        Date.now() - response.performance.lastConversionTime;
+                    const timeText =
+                        timeSinceConversion < 1000
+                            ? 'just now'
+                            : timeSinceConversion < 60000
+                              ? `${Math.round(timeSinceConversion / 1000)}s ago`
+                              : `${Math.round(timeSinceConversion / 60000)}m ago`;
+                    statusMessage = `Extension active • Last run: ${timeText}`;
+                } else {
+                    statusMessage = 'Extension loaded but no conversions detected';
+                }
+
+                const hasRunOnPage = response.performance && response.performance.hasRunOnThisPage;
                 updateStatus(
                     statusElement,
                     statusText,
                     statusIndicator,
                     isActive,
-                    isActive
-                        ? 'Extension is active on this page'
-                        : 'Extension not running on this page'
+                    statusMessage,
+                    hasRunOnPage
                 );
 
                 // Update performance info if available
@@ -73,15 +91,30 @@ function isRestrictedUrl(url) {
     );
 }
 
-function updateStatus(statusElement, statusText, statusIndicator, isActive, message) {
+function updateStatus(
+    statusElement,
+    statusText,
+    statusIndicator,
+    isActive,
+    message,
+    hasRunOnPage = false
+) {
     statusText.textContent = message;
 
-    if (isActive) {
+    if (isActive && hasRunOnPage) {
+        // Active and has run conversions - green
         statusIndicator.className = 'status-indicator active';
         statusElement.style.background = '#f0f9ff';
         statusElement.style.borderColor = '#bae6fd';
         statusText.style.color = '#0369a1';
+    } else if (isActive && !hasRunOnPage) {
+        // Active but no conversions - yellow/orange
+        statusIndicator.className = 'status-indicator warning';
+        statusElement.style.background = '#fffbeb';
+        statusElement.style.borderColor = '#fed7aa';
+        statusText.style.color = '#c2410c';
     } else {
+        // Not active - red
         statusIndicator.className = 'status-indicator inactive';
         statusElement.style.background = '#fef2f2';
         statusElement.style.borderColor = '#fecaca';
@@ -96,7 +129,15 @@ function updatePerformanceInfo(performance) {
             performance.lastRunTime < 1
                 ? `${Math.round(performance.lastRunTime * 1000)}μs`
                 : `${Math.round(performance.lastRunTime)}ms`;
-        footerText.textContent = `v1.2 • Auto-converts imperial units • Runtime: ${runtimeText}`;
+
+        const manifest = chrome.runtime.getManifest();
+        let statusText = `v${manifest.version} • Runtime: ${runtimeText}`;
+
+        if (performance.totalConversions > 0) {
+            statusText += ` • ${performance.totalConversions} conversions`;
+        }
+
+        footerText.textContent = statusText;
     }
 }
 
@@ -180,6 +221,12 @@ style.textContent = `
     .status-indicator.inactive {
         background: #ef4444 !important;
         box-shadow: 0 0 0 2px #fee2e2 !important;
+        animation: none !important;
+    }
+    
+    .status-indicator.warning {
+        background: #f59e0b !important;
+        box-shadow: 0 0 0 2px #fef3c7 !important;
         animation: none !important;
     }
     

@@ -456,19 +456,19 @@ let performanceData = {
     lastRunTime: 0,
     totalConversions: 0,
     startTime: Date.now(),
+    pageLoadTime: Date.now(),
+    lastConversionTime: null,
 };
 
 // Only run the browser-specific code if we're in a browser environment
-if (typeof window !== 'undefined') {
-    if (isBlacklistedUrl(window.location.href)) {
-        return;
-    }
+if (typeof window !== 'undefined' && !isBlacklistedUrl(window.location.href)) {
     // Initial conversion with timing
     const startTime = performance.now();
 
     processNode(document.body);
     const endTime = performance.now();
     performanceData.lastRunTime = Math.round((endTime - startTime) * 100) / 100;
+    performanceData.lastConversionTime = Date.now();
 
     // Watch for dynamic content changes
     const observer = new MutationObserver((mutations) => {
@@ -500,6 +500,7 @@ if (typeof window !== 'undefined') {
             performanceData.lastRunTime +=
                 Math.round((mutationEndTime - mutationStartTime) * 100) / 100;
             performanceData.totalConversions += conversionsInMutation;
+            performanceData.lastConversionTime = Date.now();
         }
     });
 
@@ -814,6 +815,9 @@ if (typeof chrome !== 'undefined' && chrome.runtime) {
                     lastRunTime: performanceData.lastRunTime,
                     totalConversions: performanceData.totalConversions,
                     uptime: Date.now() - performanceData.startTime,
+                    pageLoadTime: performanceData.pageLoadTime,
+                    lastConversionTime: performanceData.lastConversionTime,
+                    hasRunOnThisPage: performanceData.lastConversionTime !== null,
                 },
             });
         }
