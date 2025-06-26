@@ -1,12 +1,12 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(npm test)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(npm run lint)",
-      "Bash(npm run build:chrome:*)"
-    ],
-    "deny": []
-  }
+    "permissions": {
+        "allow": [
+            "Bash(npm test)",
+            "Bash(git add:*)",
+            "Bash(git commit:*)",
+            "Bash(npm run lint)",
+            "Bash(npm run build:chrome:*)"
+        ],
+        "deny": []
+    }
 }

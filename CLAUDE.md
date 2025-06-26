@@ -180,7 +180,7 @@ npm run build:safari      # Safari extension via Xcode
 
 ### Code Modification Guidelines
 
-- **Primary file**: `src/content.js` contains all conversion logic  
+- **Primary file**: `src/content.js` contains all conversion logic
 - **Test updates**: Modify `test/content.test.js` for new functionality
 - **Build verification**: Always run tests before committing
 
