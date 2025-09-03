@@ -4,8 +4,8 @@
 const UNITS = {
     LENGTH: {
         FEET_INCHES: {
-            PRIMARY: '′|feet|foot|ft',
-            SECONDARY: '″|inches|inch|in',
+            PRIMARY: "'|′|feet|foot|ft",
+            SECONDARY: '"|″|inches|inch|in',
         },
         MILES: {
             PRIMARY: 'miles|mile|mi',
@@ -73,9 +73,6 @@ const UNITS = {
     },
 };
 
-// Temperature patterns (Fahrenheit)
-const TEMPERATURE_REGEX = String.raw`\b(\d+(?:\.\d+)?)\s*(?:°\s*F|℉|degrees?\s*F(?:ahrenheit)?|degrees?\s*fahrenheit)\b(?!\s*\()`;
-
 const TEMPERATURE_F_REGEX = String.raw`(?<!\()(?<![\d.])\b(\d+(?:\.\d+)?)\s*(?:°\s*F|℉|F\b|deg\s*F|degree\s*F|degrees\s*F|degrees?\s*Fahrenheit|Fahrenheit)\b(?!\s*\()`;
 const TEMPERATURE_C_REGEX = String.raw`(?<!\()(?<![\d.])\b(\d+(?:\.\d+)?)\s*(?:°\s*C|℃|C\b|deg\s*C|degree\s*C|degrees\s*C|degrees?\s*Celsius|Celsius)\b(?!\s*\()`;
 
@@ -113,6 +110,10 @@ const UNIT_KEYWORDS = [
     'in',
     'inch',
     'inches',
+    '"',
+    "'",
+    '″',
+    '′',
     'mi',
     'mile',
     'miles',
@@ -366,6 +367,24 @@ function parseMeasurementMatch(match, units) {
 
 function convertLengthText(text) {
     let converted = text;
+    // Handle standalone inch/foot symbols like 12" or 5'
+    const VALUE_PART = String.raw`(?:\d+\.\d+|\d+\s+\d+\/\d+|\d+\/\d+|\d+[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
+    const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″)(?!\s*\()`, 'giu');
+    const feetSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:'|′)(?!\s*\()`, 'giu');
+
+    converted = converted.replace(inchesSymbolRegex, function (match, value) {
+        const inches = convertToDecimal(String(value));
+        if (Number.isNaN(inches)) return match;
+        const meters = convertLengthToMeters(0, inches, 0);
+        return `${match} (${formatLengthMeasurement(meters)})`;
+    });
+
+    converted = converted.replace(feetSymbolRegex, function (match, value) {
+        const feet = convertToDecimal(String(value));
+        if (Number.isNaN(feet)) return match;
+        const meters = convertLengthToMeters(feet, 0, 0);
+        return `${match} (${formatLengthMeasurement(meters)})`;
+    });
     // Convert feet-inches combinations
     const feetInchesRegex = createRegexFromTemplate(
         UNITS.LENGTH.FEET_INCHES.PRIMARY,
@@ -1033,7 +1052,12 @@ function convertText(text) {
     };
 
     // Route to appropriate conversion function based on unit type
-    if (containsUnits(converted, UNITS.LENGTH)) {
+    // Length detection: also handle quote-based symbols (e.g., 12" or 5')
+    const quoteLengthHint = new RegExp(
+        String.raw`(?:\d|[${UNICODE_FRACTIONS}])\s*(?:"|″|'|′)`,
+        'i'
+    ).test(converted);
+    if (quoteLengthHint || containsUnits(converted, UNITS.LENGTH)) {
         converted = convertLengthText(converted);
     }
     if (containsUnits(converted, UNITS.LIQUID)) {
