@@ -25,8 +25,8 @@ function main() {
         times.push(t);
     }
     const avg = times.reduce((a, b) => a + b, 0) / runs;
-    console.log('Runs:', times.map((t) => t.toFixed(2)).join(', '));
-    console.log('Average:', avg.toFixed(2), 'ms');
+    process.stdout.write('Runs: ' + times.map((t) => t.toFixed(2)).join(', ') + '\n');
+    process.stdout.write('Average: ' + avg.toFixed(2) + ' ms\n');
 }
 
 main();

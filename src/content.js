@@ -112,11 +112,7 @@ const TIME_REGEX = String.raw`\b(?:(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?\s*(?:am|pm
 // Precompiled time regexes
 const RE_TIME_GLOBAL = new RegExp(TIME_REGEX, 'gi');
 const RE_TIME_TEST = new RegExp(TIME_REGEX, 'i');
-// Precompiled length quote hint
-const RE_QUOTE_LENGTH_HINT = new RegExp(
-    String.raw`(?:\\d|[${UNICODE_FRACTIONS}])\\s*(?:\"|″|'|′)`,
-    'i'
-);
+// NOTE: quote length hint regex is compiled inline where used to avoid unused var lint
 
 // Offset hours from UTC for common timezones (ignoring daylight saving time)
 const TIME_ZONE_OFFSETS = {
@@ -204,12 +200,43 @@ const UNIT_KEYWORDS = [
 ];
 
 // URL blacklist - domains where the extension should not run
+// Block most Google properties but allow Gmail (mail.google.*)
 const URL_BLACKLIST = [
-    /^https?:\/\/.*\.google\./, // All Google domains (google.com, google.de, etc.)
+    /^https?:\/\/(?!mail\.)[^/]*\.google\./, // e.g., www.google.com, docs.google.com, etc. (but not mail.google.com)
 ];
 
 function isBlacklistedUrl(url) {
     return URL_BLACKLIST.some((pattern) => pattern.test(url));
+}
+
+// Safe getter for the extension name (used in tooltip)
+function getPluginName() {
+    try {
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
+            const manifest = chrome.runtime.getManifest();
+            if (manifest && manifest.name) return manifest.name;
+        }
+    } catch (_) {
+        // ignore
+    }
+    return 'Imperial to Metric';
+}
+
+// Helper to style inserted conversions with underline + tooltip
+function createInsertedSpan(text, doc) {
+    const d = doc || (typeof document !== 'undefined' ? document : null);
+    const span = d
+        ? d.createElement('span')
+        : { style: {}, set textContent(t) {}, set title(t) {}, set className(c) {} };
+    span.className = 'mic-inserted';
+    // Inline styles to avoid relying on site CSS
+    span.style.textDecorationLine = 'underline';
+    span.style.textDecorationStyle = 'dotted';
+    // Match underline color to surrounding text color
+    span.style.textDecorationColor = 'currentColor';
+    span.title = `Inserted by ${getPluginName()} extension`;
+    span.textContent = text;
+    return span;
 }
 
 /**
@@ -523,10 +550,100 @@ function processElement(node) {
         const originalText = node.textContent;
 
         // Fast pre-filter: only process text that might contain relevant units
+        // Skip if the next significant sibling (ignoring whitespace-only text nodes)
+        // is one of our inserted spans. This prevents double-processing the same
+        // text node content after we've already added a following "(… )" span.
+        let ns = node.nextSibling;
+        while (ns && ns.nodeType === Node.TEXT_NODE && /^\s*$/.test(ns.textContent)) {
+            ns = ns.nextSibling;
+        }
+        if (
+            ns &&
+            ns.nodeType === Node.ELEMENT_NODE &&
+            ns.classList &&
+            ns.classList.contains('mic-inserted')
+        ) {
+            return;
+        }
+
         if (hasRelevantUnits(originalText)) {
             const newText = convertText(originalText);
             if (originalText !== newText) {
-                node.textContent = newText;
+                // Build a fragment that preserves original text and wraps inserted
+                // conversions like " (12.7 cm)" in a styled span.
+                const doc =
+                    (node && node.ownerDocument) ||
+                    (typeof document !== 'undefined' ? document : null);
+                const frag = doc ? doc.createDocumentFragment() : null;
+                let i = 0; // index in originalText
+                let j = 0; // index in newText
+                let buffer = '';
+
+                const isWhitespace = (ch) => /\s/.test(ch || '');
+
+                while (j < newText.length) {
+                    if (i < originalText.length && originalText[i] === newText[j]) {
+                        buffer += newText[j];
+                        i += 1;
+                        j += 1;
+                        continue;
+                    }
+
+                    // Mismatch indicates inserted conversion. We expect optional whitespace then "(… )".
+                    if (
+                        newText[j] === '(' ||
+                        (isWhitespace(newText[j]) && newText[j + 1] === '(')
+                    ) {
+                        // Flush buffered matching text
+                        if (buffer && frag && doc) {
+                            frag.appendChild(doc.createTextNode(buffer));
+                            buffer = '';
+                        }
+
+                        // If there is leading whitespace before '(', append it as plain text
+                        while (isWhitespace(newText[j]) && newText[j + 1] === '(') {
+                            if (frag && doc) frag.appendChild(doc.createTextNode(newText[j]));
+                            j += 1;
+                        }
+
+                        // Now newText[j] should be '('
+                        if (newText[j] !== '(') {
+                            // Not our pattern; fallback
+                            buffer += newText[j];
+                            j += 1;
+                            continue;
+                        }
+
+                        // Find the end of the inserted parenthetical
+                        const closeIdx = newText.indexOf(')', j + 1);
+                        if (closeIdx === -1) {
+                            // Fallback: no closing paren; append the rest as text
+                            buffer += newText.slice(j);
+                            break;
+                        }
+                        const insertedText = newText.slice(j, closeIdx + 1);
+                        if (frag) {
+                            frag.appendChild(createInsertedSpan(insertedText, doc));
+                        }
+                        // Advance j past the inserted text; i stays the same
+                        j = closeIdx + 1;
+                        continue;
+                    }
+
+                    // Fallback: if not a recognized insertion, move forward conservatively
+                    buffer += newText[j];
+                    j += 1;
+                }
+
+                if (buffer && frag && doc) {
+                    frag.appendChild(doc.createTextNode(buffer));
+                }
+                if (frag) {
+                    node.replaceWith(frag);
+                } else {
+                    // Extremely defensive fallback for non-browser contexts
+                    node.textContent = newText;
+                }
             }
         }
     }
@@ -568,15 +685,9 @@ if (typeof window !== 'undefined' && !isBlacklistedUrl(window.location.href)) {
                     processElement(node);
                     conversionsInMutation++;
                 } else if (node.nodeType === Node.TEXT_NODE) {
-                    // Handle text nodes directly added
-                    if (hasRelevantUnits(node.textContent)) {
-                        const originalText = node.textContent;
-                        const newText = convertText(originalText);
-                        if (originalText !== newText) {
-                            node.textContent = newText;
-                            conversionsInMutation++;
-                        }
-                    }
+                    // Handle text nodes directly added using the same logic
+                    processElement(node);
+                    conversionsInMutation++;
                 }
             }
         }
@@ -1220,6 +1331,7 @@ if (typeof exports !== 'undefined') {
         processNode,
         processElement,
         hasRelevantUnits,
+        isBlacklistedUrl,
         formatLengthMeasurement,
         formatWeightMeasurement,
         formatLiquidMeasurement,
