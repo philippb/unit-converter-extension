@@ -916,7 +916,9 @@ function convertText(text) {
                             ? convertLengthToMeters(0, rightParsed.secondary.value)
                             : convertLengthToMeters(rightParsed.primary.value, 0);
                         const formatted = formatLengthRange(m1, m2);
-                        const token = addPlaceholder(`${s.slice(tailStart, curr.end)} (${formatted})`);
+                        const token = addPlaceholder(
+                            `${s.slice(tailStart, curr.end)} (${formatted})`
+                        );
                         replacements.push({ start: tailStart, end: curr.end, token });
                     }
                 }
@@ -976,7 +978,9 @@ function convertText(text) {
                             ? convertWeightToGrams(rightParsed.primary.value, 0)
                             : convertWeightToGrams(0, rightParsed.secondary.value);
                         const formatted = formatWeightRange(g1, g2);
-                        const token = addPlaceholder(`${s.slice(tailStart, curr.end)} (${formatted})`);
+                        const token = addPlaceholder(
+                            `${s.slice(tailStart, curr.end)} (${formatted})`
+                        );
                         replacements.push({ start: tailStart, end: curr.end, token });
                     }
                 }

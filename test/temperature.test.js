@@ -23,7 +23,10 @@ describe('Temperature Conversion', () => {
         const cases = [
             { input: 'Preheat oven to 400 F', re: /400\s*F\s*\(\s*\d+(?:\.\d{1,2})?°C\)/i },
             { input: 'Preheat oven to 400° F', re: /400°\s*F\s*\(\s*\d+(?:\.\d{1,2})?°C\)/i },
-            { input: 'Preheat oven to 375 Fahrenheit', re: /375\s*Fahrenheit\s*\(\s*\d+(?:\.\d{1,2})?°C\)/i },
+            {
+                input: 'Preheat oven to 375 Fahrenheit',
+                re: /375\s*Fahrenheit\s*\(\s*\d+(?:\.\d{1,2})?°C\)/i,
+            },
         ];
 
         const { convertTemperatureText } = require('../src/content.js');

@@ -1,5 +1,4 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+set -e
 
 npm run format
-npx run lint-staged 
+npm exec lint-staged
