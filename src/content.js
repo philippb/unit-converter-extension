@@ -76,12 +76,47 @@ const UNITS = {
 const TEMPERATURE_F_REGEX = String.raw`(?<!\()(?<![\d.])\b(\d+(?:\.\d+)?)\s*(?:°\s*F|℉|F\b|deg\s*F|degree\s*F|degrees\s*F|degrees?\s*Fahrenheit|Fahrenheit)\b(?!\s*\()`;
 const TEMPERATURE_C_REGEX = String.raw`(?<!\()(?<![\d.])\b(\d+(?:\.\d+)?)\s*(?:°\s*C|℃|C\b|deg\s*C|degree\s*C|degrees\s*C|degrees?\s*Celsius|Celsius)\b(?!\s*\()`;
 
+// Precompiled temperature regexes
+const RE_TEMPERATURE_F = new RegExp(TEMPERATURE_F_REGEX, 'gi');
+const RE_TEMPERATURE_C = new RegExp(TEMPERATURE_C_REGEX, 'gi');
+const RE_TEMPERATURE_F_TEST = new RegExp(TEMPERATURE_F_REGEX, 'i');
+const RE_TEMPERATURE_C_TEST = new RegExp(TEMPERATURE_C_REGEX, 'i');
 // @ai:keep
 const UNICODE_FRACTIONS = '½¼¾⅓⅔⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒';
+// Precompute unicode fraction map once
+const UNICODE_FRACTIONS_MAP = {
+    '½': 0.5,
+    '¼': 0.25,
+    '¾': 0.75,
+    '⅓': 1 / 3,
+    '⅔': 2 / 3,
+    '⅕': 0.2,
+    '⅖': 0.4,
+    '⅗': 0.6,
+    '⅘': 0.8,
+    '⅙': 1 / 6,
+    '⅚': 5 / 6,
+    '⅛': 0.125,
+    '⅜': 0.375,
+    '⅝': 0.625,
+    '⅞': 0.875,
+    '⅐': 1 / 7,
+    '⅑': 1 / 9,
+    '⅒': 0.1,
+};
 const MEASUREMENT_REGEX_TEMPLATE = String.raw`\b(?:(?:(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:{{UNIT_COMBINED}}))))\b(?!\s*\(.*\))`;
 
 // New regex pattern for time with timezone
 const TIME_REGEX = String.raw`\b(?:(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?\s*(?:am|pm)|(?:2[0-3]|[01]?[0-9])(?::[0-5][0-9])(?::[0-5][0-9])?)(?:\s+)(?:(?:EST|CST|MST|PST|EDT|CDT|MDT|PDT)|(?:GMT|UTC)(?:\s*[+-]\s*\d+(?::[0-5][0-9])?)?)\b(?!\s*\(.*\))`;
+
+// Precompiled time regexes
+const RE_TIME_GLOBAL = new RegExp(TIME_REGEX, 'gi');
+const RE_TIME_TEST = new RegExp(TIME_REGEX, 'i');
+// Precompiled length quote hint
+const RE_QUOTE_LENGTH_HINT = new RegExp(
+    String.raw`(?:\\d|[${UNICODE_FRACTIONS}])\\s*(?:\"|″|'|′)`,
+    'i'
+);
 
 // Offset hours from UTC for common timezones (ignoring daylight saving time)
 const TIME_ZONE_OFFSETS = {
@@ -184,64 +219,50 @@ function isBlacklistedUrl(url) {
  *
  * @ai:ignore-start
  */
+// Precompiled numeric regexes
+const RE_MIXED_UNICODE = /^(\d+)\s*([¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*$/;
+const RE_DECIMAL_NUM = /^\d*\.\d+\s*$/;
+const RE_WHOLE_NUM = /^\d+\s*$/;
+const RE_SIMPLE_FRACTION = /^(\d+)\/(\d+)\s*$/;
+const RE_MIXED_FRACTION = /^(\d+)\s+(\d+)\/(\d+)\s*$/;
+
 function convertToDecimal(value) {
     if (!value || typeof value !== 'string') {
         return NaN;
     }
 
-    // Handle unicode fractions
-    const unicodeFractions = {
-        '½': 0.5,
-        '¼': 0.25,
-        '¾': 0.75,
-        '⅓': 1 / 3,
-        '⅔': 2 / 3,
-        '⅕': 0.2,
-        '⅖': 0.4,
-        '⅗': 0.6,
-        '⅘': 0.8,
-        '⅙': 1 / 6,
-        '⅚': 5 / 6,
-        '⅛': 0.125,
-        '⅜': 0.375,
-        '⅝': 0.625,
-        '⅞': 0.875,
-        '⅐': 1 / 7,
-        '⅑': 1 / 9,
-        '⅒': 0.1,
-    };
-
     // Check if it's a single unicode fraction
-    if (unicodeFractions[value.trim()]) {
-        return unicodeFractions[value.trim()];
+    const trimmed = value.trim();
+    if (Object.prototype.hasOwnProperty.call(UNICODE_FRACTIONS_MAP, trimmed)) {
+        return UNICODE_FRACTIONS_MAP[trimmed];
     }
 
     // Check for mixed number with unicode fraction (e.g., "1 ½" or "1½")
-    const mixedUnicodeMatch = value.match(/^(\d+)\s*([¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*$/);
+    const mixedUnicodeMatch = trimmed.match(RE_MIXED_UNICODE);
     if (mixedUnicodeMatch) {
         const wholeNumber = parseInt(mixedUnicodeMatch[1], 10);
-        const fraction = unicodeFractions[mixedUnicodeMatch[2]];
+        const fraction = UNICODE_FRACTIONS_MAP[mixedUnicodeMatch[2]];
         return wholeNumber + fraction;
     }
 
     // Check if it's a decimal number
-    if (/^\d*\.\d+\s*$/.test(value)) {
-        return parseFloat(value);
+    if (RE_DECIMAL_NUM.test(trimmed)) {
+        return parseFloat(trimmed);
     }
 
     // Check if it's a simple whole number
-    if (/^\d+\s*$/.test(value)) {
-        return parseInt(value, 10);
+    if (RE_WHOLE_NUM.test(trimmed)) {
+        return parseInt(trimmed, 10);
     }
 
     // Check if it's a simple fraction (e.g., "1/2")
-    const fractionMatch = value.match(/^(\d+)\/(\d+)\s*$/);
+    const fractionMatch = trimmed.match(RE_SIMPLE_FRACTION);
     if (fractionMatch) {
         return parseInt(fractionMatch[1], 10) / parseInt(fractionMatch[2], 10);
     }
 
     // Check for mixed number (e.g., "1 1/2")
-    const mixedMatch = value.match(/^(\d+)\s+(\d+)\/(\d+)\s*$/);
+    const mixedMatch = trimmed.match(RE_MIXED_FRACTION);
     if (mixedMatch) {
         const wholeNumber = parseInt(mixedMatch[1], 10);
         const numerator = parseInt(mixedMatch[2], 10);
@@ -252,13 +273,20 @@ function convertToDecimal(value) {
     return NaN;
 }
 
+// Memoize compiled measurement regexes by unit pattern pair
+const measureRegexCache = new Map();
 function createRegexFromTemplate(unitBig, unitSmall = '') {
+    const key = `${unitBig}__${unitSmall}`;
+    const cached = measureRegexCache.get(key);
+    if (cached) return cached;
     // Replace placeholders in template with actual unit patterns
     let regexStr = MEASUREMENT_REGEX_TEMPLATE.replace('{{UNIT_BIG}}', unitBig || '')
         .replace('{{UNIT_SMALL}}', unitSmall || '')
         .replaceAll('{{UNIT_COMBINED}}', `${unitBig}|${unitSmall}` || '');
 
-    return new RegExp(regexStr, 'giu');
+    const compiled = new RegExp(regexStr, 'giu');
+    measureRegexCache.set(key, compiled);
+    return compiled;
 }
 
 // Conversion constants to meters
@@ -319,6 +347,19 @@ function formatLengthMeasurement(meters) {
  * @param {Object} units - Object containing primary and secondary unit patterns
  * @returns {Object} - Contains values and units found
  */
+// Cache compiled primary/secondary unit matchers per units object
+const unitRegexCache = new WeakMap();
+function getUnitRegexes(units) {
+    let pair = unitRegexCache.get(units);
+    if (!pair) {
+        const primary = new RegExp(`^(${units.PRIMARY})$`, 'i');
+        const secondary = new RegExp(`^(${units.SECONDARY})$`, 'i');
+        pair = { primary, secondary };
+        unitRegexCache.set(units, pair);
+    }
+    return pair;
+}
+
 function parseMeasurementMatch(match, units) {
     // Split on units while preserving them
     const unitPattern = new RegExp(`(${units.PRIMARY}|${units.SECONDARY})`, 'i');
@@ -337,8 +378,8 @@ function parseMeasurementMatch(match, units) {
     if (parts.length >= 2) {
         const firstValue = convertToDecimal(parts[0]);
         const firstUnit = parts[1].toLowerCase();
-
-        if (firstUnit.match(new RegExp(`^(${units.PRIMARY})$`, 'i'))) {
+        const { primary: rePrimary, secondary: reSecondary } = getUnitRegexes(units);
+        if (rePrimary.test(firstUnit)) {
             primaryValue = firstValue;
             primaryUnit = firstUnit;
 
@@ -346,13 +387,12 @@ function parseMeasurementMatch(match, units) {
             if (parts.length >= 4) {
                 const secondValue = convertToDecimal(parts[2]);
                 const secondUnit = parts[3].toLowerCase();
-
-                if (secondUnit.match(new RegExp(`^(${units.SECONDARY})$`, 'i'))) {
+                if (reSecondary.test(secondUnit)) {
                     secondaryValue = secondValue;
                     secondaryUnit = secondUnit;
                 }
             }
-        } else if (firstUnit.match(new RegExp(`^(${units.SECONDARY})$`, 'i'))) {
+        } else if (reSecondary.test(firstUnit)) {
             // Handle case where only secondary unit is present
             secondaryValue = firstValue;
             secondaryUnit = firstUnit;
@@ -372,39 +412,54 @@ function convertLengthText(text) {
     const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″)(?!\s*\()`, 'giu');
     const feetSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:'|′)(?!\s*\()`, 'giu');
 
-    converted = converted.replace(inchesSymbolRegex, function (match, value) {
-        const inches = convertToDecimal(String(value));
-        if (Number.isNaN(inches)) return match;
-        const meters = convertLengthToMeters(0, inches, 0);
-        return `${match} (${formatLengthMeasurement(meters)})`;
-    });
+    if (converted.includes('"') || converted.includes('″')) {
+        converted = converted.replace(inchesSymbolRegex, function (match, value) {
+            const inches = convertToDecimal(String(value));
+            if (Number.isNaN(inches)) return match;
+            const meters = convertLengthToMeters(0, inches, 0);
+            return `${match} (${formatLengthMeasurement(meters)})`;
+        });
+    }
 
-    converted = converted.replace(feetSymbolRegex, function (match, value) {
-        const feet = convertToDecimal(String(value));
-        if (Number.isNaN(feet)) return match;
-        const meters = convertLengthToMeters(feet, 0, 0);
-        return `${match} (${formatLengthMeasurement(meters)})`;
-    });
-    // Convert feet-inches combinations
-    const feetInchesRegex = createRegexFromTemplate(
-        UNITS.LENGTH.FEET_INCHES.PRIMARY,
-        UNITS.LENGTH.FEET_INCHES.SECONDARY
-    );
+    if (converted.includes("'") || converted.includes('′')) {
+        converted = converted.replace(feetSymbolRegex, function (match, value) {
+            const feet = convertToDecimal(String(value));
+            if (Number.isNaN(feet)) return match;
+            const meters = convertLengthToMeters(feet, 0, 0);
+            return `${match} (${formatLengthMeasurement(meters)})`;
+        });
+    }
+    // Convert feet-inches combinations (only if likely present)
+    const lowerLen = converted.toLowerCase();
+    if (
+        lowerLen.includes('ft') ||
+        lowerLen.includes('foot') ||
+        lowerLen.includes('feet') ||
+        lowerLen.includes(' in') ||
+        lowerLen.includes('inch')
+    ) {
+        const feetInchesRegex = createRegexFromTemplate(
+            UNITS.LENGTH.FEET_INCHES.PRIMARY,
+            UNITS.LENGTH.FEET_INCHES.SECONDARY
+        );
 
-    converted = converted.replace(feetInchesRegex, function (match) {
-        const parsed = parseMeasurementMatch(match, UNITS.LENGTH.FEET_INCHES);
-        const meters = convertLengthToMeters(parsed.primary.value, parsed.secondary.value);
-        return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
-    });
+        converted = converted.replace(feetInchesRegex, function (match) {
+            const parsed = parseMeasurementMatch(match, UNITS.LENGTH.FEET_INCHES);
+            const meters = convertLengthToMeters(parsed.primary.value, parsed.secondary.value);
+            return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
+        });
+    }
 
-    // Convert standalone miles
-    const milesRegex = createRegexFromTemplate(UNITS.LENGTH.MILES.PRIMARY, '');
+    // Convert standalone miles (only if likely present)
+    if (lowerLen.includes(' mi') || lowerLen.includes('mile')) {
+        const milesRegex = createRegexFromTemplate(UNITS.LENGTH.MILES.PRIMARY, '');
 
-    converted = converted.replace(milesRegex, function (match) {
-        const parsed = parseMeasurementMatch(match, UNITS.LENGTH.MILES);
-        const meters = convertLengthToMeters(0, 0, parsed.primary.value);
-        return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
-    });
+        converted = converted.replace(milesRegex, function (match) {
+            const parsed = parseMeasurementMatch(match, UNITS.LENGTH.MILES);
+            const meters = convertLengthToMeters(0, 0, parsed.primary.value);
+            return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
+        });
+    }
 
     return converted;
 }
@@ -562,12 +617,20 @@ function formatWeightMeasurement(grams) {
 
 function convertWeightText(text) {
     let converted = text;
-    const weightRegex = createRegexFromTemplate(UNITS.WEIGHT.PRIMARY, UNITS.WEIGHT.SECONDARY);
-    converted = converted.replace(weightRegex, function (match) {
-        const parsed = parseMeasurementMatch(match, UNITS.WEIGHT);
-        const grams = convertWeightToGrams(parsed.primary.value, parsed.secondary.value);
-        return grams === 0 ? match : `${match} (${formatWeightMeasurement(grams)})`;
-    });
+    const lower = converted.toLowerCase();
+    if (
+        lower.includes('lb') ||
+        lower.includes('pound') ||
+        lower.includes('oz') ||
+        lower.includes('ounce')
+    ) {
+        const weightRegex = createRegexFromTemplate(UNITS.WEIGHT.PRIMARY, UNITS.WEIGHT.SECONDARY);
+        converted = converted.replace(weightRegex, function (match) {
+            const parsed = parseMeasurementMatch(match, UNITS.WEIGHT);
+            const grams = convertWeightToGrams(parsed.primary.value, parsed.secondary.value);
+            return grams === 0 ? match : `${match} (${formatWeightMeasurement(grams)})`;
+        });
+    }
     return converted;
 }
 
@@ -589,69 +652,94 @@ function formatLiquidMeasurement(liters) {
 
 function convertLiquidText(text) {
     let converted = text;
+    const lower = converted.toLowerCase();
+
     // Convert gallons-quarts combinations
-    const gallonsQuartsRegex = createRegexFromTemplate(
-        UNITS.LIQUID.GALLONS_QUARTS.PRIMARY,
-        UNITS.LIQUID.GALLONS_QUARTS.SECONDARY
-    );
+    if (
+        lower.includes('gal') ||
+        lower.includes('gallon') ||
+        lower.includes('quart') ||
+        lower.includes('qt')
+    ) {
+        const gallonsQuartsRegex = createRegexFromTemplate(
+            UNITS.LIQUID.GALLONS_QUARTS.PRIMARY,
+            UNITS.LIQUID.GALLONS_QUARTS.SECONDARY
+        );
 
-    converted = converted.replace(gallonsQuartsRegex, function (match) {
-        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS_QUARTS);
-        const liters =
-            parsed.primary.value * LIQUID_GALLON_TO_L + parsed.secondary.value * LIQUID_QUART_TO_L;
-        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-    });
+        converted = converted.replace(gallonsQuartsRegex, function (match) {
+            const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS_QUARTS);
+            const liters =
+                parsed.primary.value * LIQUID_GALLON_TO_L +
+                parsed.secondary.value * LIQUID_QUART_TO_L;
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        });
+    }
 
-    const cupsFluidOuncesRegex = createRegexFromTemplate(
-        UNITS.LIQUID.CUPS_FLOZ.PRIMARY,
-        UNITS.LIQUID.CUPS_FLOZ.SECONDARY
-    );
+    if (lower.includes('cup') || lower.includes('fl oz') || lower.includes('fluid')) {
+        const cupsFluidOuncesRegex = createRegexFromTemplate(
+            UNITS.LIQUID.CUPS_FLOZ.PRIMARY,
+            UNITS.LIQUID.CUPS_FLOZ.SECONDARY
+        );
 
-    converted = converted.replace(cupsFluidOuncesRegex, function (match) {
-        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.CUPS_FLOZ);
-        const liters =
-            parsed.primary.value * LIQUID_CUP_TO_L + parsed.secondary.value * LIQUID_FLOZ_TO_L;
-        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-    });
+        converted = converted.replace(cupsFluidOuncesRegex, function (match) {
+            const parsed = parseMeasurementMatch(match, UNITS.LIQUID.CUPS_FLOZ);
+            const liters =
+                parsed.primary.value * LIQUID_CUP_TO_L + parsed.secondary.value * LIQUID_FLOZ_TO_L;
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        });
+    }
 
-    const tablespoonsTeaspoonsRegex = createRegexFromTemplate(
-        UNITS.LIQUID.TBSP_TSP.PRIMARY,
-        UNITS.LIQUID.TBSP_TSP.SECONDARY
-    );
+    if (
+        lower.includes('tbsp') ||
+        lower.includes('tablespoon') ||
+        lower.includes('tsp') ||
+        lower.includes('teaspoon')
+    ) {
+        const tablespoonsTeaspoonsRegex = createRegexFromTemplate(
+            UNITS.LIQUID.TBSP_TSP.PRIMARY,
+            UNITS.LIQUID.TBSP_TSP.SECONDARY
+        );
 
-    converted = converted.replace(tablespoonsTeaspoonsRegex, function (match) {
-        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.TBSP_TSP);
-        const liters =
-            parsed.primary.value * LIQUID_TBSP_TO_L + parsed.secondary.value * LIQUID_TSP_TO_L;
-        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-    });
+        converted = converted.replace(tablespoonsTeaspoonsRegex, function (match) {
+            const parsed = parseMeasurementMatch(match, UNITS.LIQUID.TBSP_TSP);
+            const liters =
+                parsed.primary.value * LIQUID_TBSP_TO_L + parsed.secondary.value * LIQUID_TSP_TO_L;
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        });
+    }
 
     // Convert standalone gallons
-    const gallonsRegex = createRegexFromTemplate(UNITS.LIQUID.GALLONS.PRIMARY, '');
+    if (lower.includes('gal') || lower.includes('gallon')) {
+        const gallonsRegex = createRegexFromTemplate(UNITS.LIQUID.GALLONS.PRIMARY, '');
 
-    converted = converted.replace(gallonsRegex, function (match) {
-        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS);
-        const liters = parsed.primary.value * LIQUID_GALLON_TO_L;
-        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-    });
+        converted = converted.replace(gallonsRegex, function (match) {
+            const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS);
+            const liters = parsed.primary.value * LIQUID_GALLON_TO_L;
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        });
+    }
 
     // Convert standalone quarts
-    const quartsRegex = createRegexFromTemplate(UNITS.LIQUID.QUARTS.PRIMARY, '');
+    if (lower.includes('quart') || lower.includes('qt')) {
+        const quartsRegex = createRegexFromTemplate(UNITS.LIQUID.QUARTS.PRIMARY, '');
 
-    converted = converted.replace(quartsRegex, function (match) {
-        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.QUARTS);
-        const liters = parsed.primary.value * LIQUID_QUART_TO_L;
-        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-    });
+        converted = converted.replace(quartsRegex, function (match) {
+            const parsed = parseMeasurementMatch(match, UNITS.LIQUID.QUARTS);
+            const liters = parsed.primary.value * LIQUID_QUART_TO_L;
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        });
+    }
 
     // Convert standalone pints
-    const pintsRegex = createRegexFromTemplate(UNITS.LIQUID.PINTS.PRIMARY, '');
+    if (lower.includes('pint')) {
+        const pintsRegex = createRegexFromTemplate(UNITS.LIQUID.PINTS.PRIMARY, '');
 
-    converted = converted.replace(pintsRegex, function (match) {
-        const parsed = parseMeasurementMatch(match, UNITS.LIQUID.PINTS);
-        const liters = parsed.primary.value * LIQUID_PINT_TO_L;
-        return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
-    });
+        converted = converted.replace(pintsRegex, function (match) {
+            const parsed = parseMeasurementMatch(match, UNITS.LIQUID.PINTS);
+            const liters = parsed.primary.value * LIQUID_PINT_TO_L;
+            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+        });
+    }
 
     return converted;
 }
@@ -664,7 +752,7 @@ function formatTemperatureCelsius(celsius) {
 
 function convertTemperatureText(text) {
     // Fahrenheit to Celsius
-    let out = text.replace(new RegExp(TEMPERATURE_F_REGEX, 'gi'), (match, fStr) => {
+    let out = text.replace(RE_TEMPERATURE_F, (match, fStr) => {
         const f = parseFloat(fStr);
         if (Number.isNaN(f)) return match;
         const c = ((f - 32) * 5) / 9;
@@ -672,7 +760,7 @@ function convertTemperatureText(text) {
     });
 
     // Celsius to Fahrenheit
-    out = out.replace(new RegExp(TEMPERATURE_C_REGEX, 'gi'), (match, cStr) => {
+    out = out.replace(RE_TEMPERATURE_C, (match, cStr) => {
         const c = parseFloat(cStr);
         if (Number.isNaN(c)) return match;
         const f = c * (9 / 5) + 32;
@@ -772,7 +860,7 @@ function convertTimeZoneText(text) {
     let converted = text;
 
     // Create regex for matching time expressions with timezone
-    const timeRegex = new RegExp(TIME_REGEX, 'gi');
+    const timeRegex = RE_TIME_GLOBAL;
 
     // Replace all time expressions
     converted = converted.replace(timeRegex, function (match) {
@@ -821,6 +909,12 @@ function convertTimeZoneText(text) {
 // Update the main convertText function to handle time zones
 function convertText(text) {
     let converted = text;
+
+    // Fast path: if there are no digits or unicode fractions, skip entirely
+    const FAST_NUMBER_HINT = new RegExp(String.raw`[0-9${UNICODE_FRACTIONS}]`);
+    if (!FAST_NUMBER_HINT.test(converted)) {
+        return converted;
+    }
 
     // Pre-pass: merge ranges by looking around existing matches.
     // We insert placeholders for detected ranges, run normal conversions,
@@ -1033,8 +1127,10 @@ function convertText(text) {
     converted = mergeWeightRanges(converted);
 
     // Helper function to check if text contains any units from a unit group
-    const containsUnits = (text, unitPatterns) => {
-        // Compose a string of all unit patterns at the first level
+    const unitGroupRegexCache = new WeakMap();
+    const getUnitGroupRegex = (unitPatterns) => {
+        let compiled = unitGroupRegexCache.get(unitPatterns);
+        if (compiled) return compiled;
         const unitString = Object.values(unitPatterns).reduce((acc, pattern) => {
             if (typeof pattern === 'string') {
                 return acc ? `${acc}|${pattern}` : pattern;
@@ -1047,8 +1143,13 @@ function convertText(text) {
                 .join('|');
             return acc ? `${acc}|${subPatterns}` : subPatterns;
         }, '');
+        compiled = new RegExp(`\\b(?:${unitString})\\b`, 'i');
+        unitGroupRegexCache.set(unitPatterns, compiled);
+        return compiled;
+    };
 
-        return new RegExp(`\\b(?:${unitString})\\b`, 'i').test(text);
+    const containsUnits = (text, unitPatterns) => {
+        return getUnitGroupRegex(unitPatterns).test(text);
     };
 
     // Route to appropriate conversion function based on unit type
@@ -1074,12 +1175,12 @@ function convertText(text) {
     }
 
     // Temperature (Fahrenheit/Celsius)
-    if (new RegExp(`${TEMPERATURE_F_REGEX}|${TEMPERATURE_C_REGEX}`, 'i').test(converted)) {
+    if (RE_TEMPERATURE_F_TEST.test(converted) || RE_TEMPERATURE_C_TEST.test(converted)) {
         converted = convertTemperatureText(converted);
     }
 
     // Check for time zone expressions
-    const hasTimeZone = new RegExp(TIME_REGEX, 'i').test(converted);
+    const hasTimeZone = RE_TIME_TEST.test(converted);
     if (hasTimeZone) {
         converted = convertTimeZoneText(converted);
     }
