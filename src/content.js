@@ -11,6 +11,29 @@ const UNITS = {
             PRIMARY: 'miles|mile|mi',
         },
     },
+    AREA: {
+        // Square feet support: e.g., "170 sq ft", "200 square feet", "12 ft²", "sq. ft."
+        SQ_FEET: {
+            // Accept common variants with or without periods and with superscript 2
+            // - square feet/foot
+            // - sq ft / sq. ft / sqft
+            // - ft^2 / ft2 / ft²
+            PRIMARY:
+                'square\\s+feet|square\\s+foot|sq\\.?\\s*ft\\.?|sq\\.?\\s*feet|sq\\.?\\s*foot|sq\\.?\\s*ft|sqft|ft\\s*(?:\\^?2|²)|ft2',
+        },
+        SQ_INCHES: {
+            PRIMARY:
+                'square\\s+inches|square\\s+inch|sq\\.?\\s*in\\.?|sq\\.?\\s*inch(?:es)?|sq\\.?\\s*in|in\\s*(?:\\^?2|²)|in2',
+        },
+        SQ_YARDS: {
+            PRIMARY:
+                'square\\s+yards|square\\s+yard|sq\\.?\\s*yd\\.?|sq\\.?\\s*yard(?:s)?|sq\\.?\\s*yd|yd\\s*(?:\\^?2|²)|yd2',
+        },
+        SQ_MILES: {
+            PRIMARY:
+                'square\\s+miles|square\\s+mile|sq\\.?\\s*mi\\.?|sq\\.?\\s*mile(?:s)?|sq\\.?\\s*mi|mi\\s*(?:\\^?2|²)|mi2',
+        },
+    },
     WEIGHT: {
         PRIMARY: 'pounds|pound|lbs|lb',
         SECONDARY: 'ounces|ounce|oz',
@@ -201,6 +224,32 @@ const UNIT_KEYWORDS = [
     'teaspoons',
     'tbs',
     'tb',
+    // Area units
+    'sq ft',
+    'sq. ft',
+    'square foot',
+    'square feet',
+    'sqft',
+    'ft²',
+    'ft^2',
+    'sq in',
+    'sq. in',
+    'square inch',
+    'square inches',
+    'in²',
+    'in^2',
+    'sq yd',
+    'sq. yd',
+    'square yard',
+    'square yards',
+    'yd²',
+    'yd^2',
+    'sq mi',
+    'sq. mi',
+    'square mile',
+    'square miles',
+    'mi²',
+    'mi^2',
     // Time zone abbreviations
     'est',
     'cst',
@@ -343,10 +392,17 @@ function createRegexFromTemplate(unitBig, unitSmall = '') {
 const LENGTH_INCH_TO_METERS = 0.0254;
 const LENGTH_FOOT_TO_METERS = 0.3048;
 const LENGTH_MILE_TO_METERS = 1609.344; // 1 mile = 1609.344 meters
+const LENGTH_YARD_TO_METERS = 0.9144;
 
 // Add these constants at the top with the other conversion constants
 const WEIGHT_OUNCE_TO_GRAMS = 28.3495;
 const WEIGHT_POUND_TO_GRAMS = 453.592;
+
+// Area conversions
+const AREA_SQFT_TO_SQM = LENGTH_FOOT_TO_METERS * LENGTH_FOOT_TO_METERS; // ft² -> m²
+const AREA_SQIN_TO_SQM = LENGTH_INCH_TO_METERS * LENGTH_INCH_TO_METERS; // in² -> m²
+const AREA_SQYD_TO_SQM = LENGTH_YARD_TO_METERS * LENGTH_YARD_TO_METERS; // yd² -> m²
+const AREA_SQMI_TO_SQM = LENGTH_MILE_TO_METERS * LENGTH_MILE_TO_METERS; // mi² -> m²
 
 // Update the constants to use liters
 const LIQUID_GALLON_TO_L = 3.78541;
@@ -614,7 +670,16 @@ function convertLengthText(text) {
             UNITS.LENGTH.FEET_INCHES.SECONDARY
         );
 
-        converted = converted.replace(feetInchesRegex, function (match) {
+        converted = converted.replace(feetInchesRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            // Do not treat as linear length if immediately followed by a squared marker (ft², ft^2)
+            if (s) {
+                const after = s.slice(offset + match.length, offset + match.length + 3);
+                if (/^\s*(?:\^\s*2|²)/.test(after)) return match;
+            }
             const parsed = parseMeasurementMatch(match, UNITS.LENGTH.FEET_INCHES);
             const meters = convertLengthToMeters(parsed.primary.value, parsed.secondary.value);
             if (meters === 0) return match;
@@ -630,7 +695,16 @@ function convertLengthText(text) {
     if (lowerLen.includes(' mi') || lowerLen.includes('mile')) {
         const milesRegex = createRegexFromTemplate(UNITS.LENGTH.MILES.PRIMARY, '');
 
-        converted = converted.replace(milesRegex, function (match) {
+        converted = converted.replace(milesRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            // Skip if squared marker immediately follows (mi², mi^2)
+            if (s) {
+                const after = s.slice(offset + match.length, offset + match.length + 3);
+                if (/^\s*(?:\^\s*2|²)/.test(after)) return match;
+            }
             const parsed = parseMeasurementMatch(match, UNITS.LENGTH.MILES);
             const meters = convertLengthToMeters(0, 0, parsed.primary.value);
             if (meters === 0) return match;
@@ -1008,6 +1082,87 @@ function convertLiquidText(text) {
             const liters = parsed.primary.value * LIQUID_PINT_TO_L;
             return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
         });
+    }
+
+    return converted;
+}
+
+function formatAreaMeasurement(squareMeters) {
+    function formatNumber(num) {
+        const s = (Math.round(num * 100) / 100).toFixed(2).replace(/\.?0+$/, '');
+        const [intPart, frac] = s.split('.');
+        const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return frac ? `${intWithCommas}.${frac}` : intWithCommas;
+    }
+
+    // Unit selection:
+    // - m² for < 1 ha (10,000 m²)
+    // - ha for [1, 100) ha (10,000–1,000,000 m²)
+    // - km² for >= 100 ha (>= 1,000,000 m²)
+    if (squareMeters >= 1_000_000) {
+        const km2 = squareMeters / 1_000_000;
+        return `${formatNumber(km2)} km²`;
+    }
+    if (squareMeters >= 10_000) {
+        const hectares = squareMeters / 10_000;
+        return `${formatNumber(hectares)} ha`;
+    }
+    return `${formatNumber(squareMeters)} m²`;
+}
+
+function convertAreaText(text) {
+    let converted = text;
+    const lower = converted.toLowerCase();
+
+    // Only proceed if likely area tokens exist
+    if (
+        lower.includes('sq ') ||
+        lower.includes('sq.') ||
+        lower.includes('square ') ||
+        lower.includes('sqft') ||
+        lower.includes(' ft2') ||
+        lower.includes('ft^2') ||
+        lower.includes('ft²') ||
+        lower.includes(' in2') ||
+        lower.includes('in^2') ||
+        lower.includes('in²') ||
+        lower.includes(' yd2') ||
+        lower.includes('yd^2') ||
+        lower.includes('yd²') ||
+        lower.includes(' mi2') ||
+        lower.includes('mi^2') ||
+        lower.includes('mi²')
+    ) {
+        const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
+
+        const groups = [
+            {
+                units: String.raw`(?:sq\.?\s*ft\.?|sq\.?\s*feet|sq\.?\s*foot|square\s+feet|square\s+foot|sqft|ft\s*(?:\^\s*2|²|2))`,
+                factor: AREA_SQFT_TO_SQM,
+            },
+            {
+                units: String.raw`(?:sq\.?\s*in\.?|sq\.?\s*inch(?:es)?|square\s+inch(?:es)?|in\s*(?:\^\s*2|²|2))`,
+                factor: AREA_SQIN_TO_SQM,
+            },
+            {
+                units: String.raw`(?:sq\.?\s*yd\.?|sq\.?\s*yard(?:s)?|square\s+yard(?:s)?|yd\s*(?:\^\s*2|²|2))`,
+                factor: AREA_SQYD_TO_SQM,
+            },
+            {
+                units: String.raw`(?:sq\.?\s*mi\.?|sq\.?\s*mile(?:s)?|square\s+mile(?:s)?|mi\s*(?:\^\s*2|²|2))`,
+                factor: AREA_SQMI_TO_SQM,
+            },
+        ];
+
+        for (const { units, factor } of groups) {
+            const areaRegex = new RegExp(String.raw`\b(${VALUE_PART})\s*${units}(?!\s*\()`, 'giu');
+            converted = converted.replace(areaRegex, function (match, value) {
+                const n = convertToDecimal(String(value));
+                if (Number.isNaN(n)) return match;
+                const sqm = n * factor;
+                return `${match} (${formatAreaMeasurement(sqm)})`;
+            });
+        }
     }
 
     return converted;
@@ -1429,6 +1584,14 @@ function convertText(text) {
         String.raw`(?:\d|[${UNICODE_FRACTIONS}])\s*(?:"|″|'|′)`,
         'i'
     ).test(converted);
+    // Area hint: avoid relying on word boundaries for tokens like 'ft²'
+    const areaHint = new RegExp(
+        String.raw`(?:sq\.?\s*ft|sq\.?\s*feet|sq\.?\s*foot|square\s+feet|square\s+foot|sqft|ft\s*(?:\^?2|²)|ft2|sq\.?\s*in|sq\.?\s*inch(?:es)?|square\s+inch(?:es)?|in\s*(?:\^?2|²)|in2|sq\.?\s*yd|sq\.?\s*yard(?:s)?|square\s+yard(?:s)?|yd\s*(?:\^?2|²)|yd2|sq\.?\s*mi|sq\.?\s*mile(?:s)?|square\s+mile(?:s)?|mi\s*(?:\^?2|²)|mi2)`,
+        'i'
+    );
+    if (areaHint.test(converted)) {
+        converted = convertAreaText(converted);
+    }
     if (quoteLengthHint || containsUnits(converted, UNITS.LENGTH)) {
         converted = convertLengthText(converted);
     }
@@ -1484,6 +1647,7 @@ if (typeof exports !== 'undefined') {
     Object.assign(exports, {
         convertText,
         convertLengthText,
+        convertAreaText,
         convertWeightText,
         convertLiquidText,
         convertTemperatureText,
@@ -1493,6 +1657,7 @@ if (typeof exports !== 'undefined') {
         hasRelevantUnits,
         isBlacklistedUrl,
         formatLengthMeasurement,
+        formatAreaMeasurement,
         formatWeightMeasurement,
         formatLiquidMeasurement,
         formatTemperatureCelsius,
