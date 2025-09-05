@@ -33,6 +33,9 @@ const UNITS = {
             PRIMARY:
                 'square\\s+miles|square\\s+mile|sq\\.?\\s*mi\\.?|sq\\.?\\s*mile(?:s)?|sq\\.?\\s*mi|mi\\s*(?:\\^?2|²)|mi2',
         },
+        ACRES: {
+            PRIMARY: 'acre(?:s)?',
+        },
     },
     WEIGHT: {
         PRIMARY: 'pounds|pound|lbs|lb',
@@ -250,6 +253,9 @@ const UNIT_KEYWORDS = [
     'square miles',
     'mi²',
     'mi^2',
+    // Acres
+    'acre',
+    'acres',
     // Time zone abbreviations
     'est',
     'cst',
@@ -403,6 +409,7 @@ const AREA_SQFT_TO_SQM = LENGTH_FOOT_TO_METERS * LENGTH_FOOT_TO_METERS; // ft² 
 const AREA_SQIN_TO_SQM = LENGTH_INCH_TO_METERS * LENGTH_INCH_TO_METERS; // in² -> m²
 const AREA_SQYD_TO_SQM = LENGTH_YARD_TO_METERS * LENGTH_YARD_TO_METERS; // yd² -> m²
 const AREA_SQMI_TO_SQM = LENGTH_MILE_TO_METERS * LENGTH_MILE_TO_METERS; // mi² -> m²
+const AREA_ACRE_TO_SQM = 4046.8564224; // acre -> m²
 
 // Update the constants to use liters
 const LIQUID_GALLON_TO_L = 3.78541;
@@ -1131,7 +1138,8 @@ function convertAreaText(text) {
         lower.includes('yd²') ||
         lower.includes(' mi2') ||
         lower.includes('mi^2') ||
-        lower.includes('mi²')
+        lower.includes('mi²') ||
+        lower.includes('acre')
     ) {
         const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
 
@@ -1151,6 +1159,10 @@ function convertAreaText(text) {
             {
                 units: String.raw`(?:sq\.?\s*mi\.?|sq\.?\s*mile(?:s)?|square\s+mile(?:s)?|mi\s*(?:\^\s*2|²|2))`,
                 factor: AREA_SQMI_TO_SQM,
+            },
+            {
+                units: String.raw`(?:acre(?:s)?)`,
+                factor: AREA_ACRE_TO_SQM,
             },
         ];
 
@@ -1586,7 +1598,7 @@ function convertText(text) {
     ).test(converted);
     // Area hint: avoid relying on word boundaries for tokens like 'ft²'
     const areaHint = new RegExp(
-        String.raw`(?:sq\.?\s*ft|sq\.?\s*feet|sq\.?\s*foot|square\s+feet|square\s+foot|sqft|ft\s*(?:\^?2|²)|ft2|sq\.?\s*in|sq\.?\s*inch(?:es)?|square\s+inch(?:es)?|in\s*(?:\^?2|²)|in2|sq\.?\s*yd|sq\.?\s*yard(?:s)?|square\s+yard(?:s)?|yd\s*(?:\^?2|²)|yd2|sq\.?\s*mi|sq\.?\s*mile(?:s)?|square\s+mile(?:s)?|mi\s*(?:\^?2|²)|mi2)`,
+        String.raw`(?:sq\.?\s*ft|sq\.?\s*feet|sq\.?\s*foot|square\s+feet|square\s+foot|sqft|ft\s*(?:\^?2|²)|ft2|sq\.?\s*in|sq\.?\s*inch(?:es)?|square\s+inch(?:es)?|in\s*(?:\^?2|²)|in2|sq\.?\s*yd|sq\.?\s*yard(?:s)?|square\s+yard(?:s)?|yd\s*(?:\^?2|²)|yd2|sq\.?\s*mi|sq\.?\s*mile(?:s)?|square\s+mile(?:s)?|mi\s*(?:\^?2|²)|mi2|acre(?:s)?)`,
         'i'
     );
     if (areaHint.test(converted)) {
