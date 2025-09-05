@@ -1,5 +1,13 @@
 # Release Notes
 
+## 1.5 — 2025-09-05
+
+Changes:
+
+- 4df630a Added dynamic decimal precision based on size of the number
+- 1e21e50 Added acres
+- ea5e2f7 Added square area support such as sq ft
+
 ## 1.4 — 2025-09-05
 
 Changes:
