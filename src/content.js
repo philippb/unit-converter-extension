@@ -104,7 +104,8 @@ const UNICODE_FRACTIONS_MAP = {
     '⅑': 1 / 9,
     '⅒': 0.1,
 };
-const MEASUREMENT_REGEX_TEMPLATE = String.raw`\b(?:(?:(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:\d+\.\d+|\d\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:{{UNIT_COMBINED}}))))\b(?!\s*\(.*\))`;
+// Updated to support comma thousand separators in numbers (e.g., 1,234 or 1,234.56)
+const MEASUREMENT_REGEX_TEMPLATE = String.raw`\b(?:(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}}))))(?=\b|\W|$)(?!\s*\(.*\))`;
 
 // New regex pattern for time with timezone
 const TIME_REGEX = String.raw`\b(?:(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?\s*(?:am|pm)|(?:2[0-3]|[01]?[0-9])(?::[0-5][0-9])(?::[0-5][0-9])?)(?:\s+)(?:(?:EST|CST|MST|PST|EDT|CDT|MDT|PDT)|(?:GMT|UTC)(?:\s*[+-]\s*\d+(?::[0-5][0-9])?)?)\b(?!\s*\(.*\))`;
@@ -259,7 +260,8 @@ function convertToDecimal(value) {
     }
 
     // Check if it's a single unicode fraction
-    const trimmed = value.trim();
+    // Normalize by removing comma thousands separators so 1,234.56 parses correctly
+    const trimmed = String(value).trim().replace(/,/g, '');
     if (Object.prototype.hasOwnProperty.call(UNICODE_FRACTIONS_MAP, trimmed)) {
         return UNICODE_FRACTIONS_MAP[trimmed];
     }
@@ -345,10 +347,11 @@ function convertLengthToMeters(feet = 0, inches = 0, miles = 0) {
 
 function formatLengthMeasurement(meters) {
     function formatNumber(num) {
-        // Convert to string with max 2 decimal places
-        const str = num.toFixed(2);
-        // Remove trailing zeros after decimal point
-        return str.replace(/\.?0+$/, '');
+        // Convert to string with max 2 decimals, trim zeros, add commas
+        const s = num.toFixed(2).replace(/\.?0+$/, '');
+        const [intPart, frac] = s.split('.');
+        const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return frac ? `${intWithCommas}.${frac}` : intWithCommas;
     }
 
     if (meters === 0) return '0 cm';
@@ -435,7 +438,7 @@ function parseMeasurementMatch(match, units) {
 function convertLengthText(text) {
     let converted = text;
     // Handle standalone inch/foot symbols like 12" or 5'
-    const VALUE_PART = String.raw`(?:\d+\.\d+|\d+\s+\d+\/\d+|\d+\/\d+|\d+[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
+    const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
     const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″)(?!\s*\()`, 'giu');
     const feetSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:'|′)(?!\s*\()`, 'giu');
 
@@ -714,8 +717,10 @@ function convertWeightToGrams(pounds = 0, ounces = 0) {
 
 function formatWeightMeasurement(grams) {
     function formatNumber(num) {
-        const str = num.toFixed(2);
-        return str.replace(/\.?0+$/, '');
+        const s = num.toFixed(2).replace(/\.?0+$/, '');
+        const [intPart, frac] = s.split('.');
+        const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return frac ? `${intWithCommas}.${frac}` : intWithCommas;
     }
 
     if (grams === 0) return '0 g';
@@ -747,10 +752,12 @@ function convertWeightText(text) {
 
 function formatLiquidMeasurement(liters) {
     function formatNumber(num) {
-        // Round to 2 decimal places
+        // Round to 2 decimals, trim zeros, add commas
         const rounded = Math.round(num * 100) / 100;
-        const str = rounded.toFixed(2);
-        return str.replace(/\.?0+$/, '');
+        const s = rounded.toFixed(2).replace(/\.?0+$/, '');
+        const [intPart, frac] = s.split('.');
+        const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return frac ? `${intWithCommas}.${frac}` : intWithCommas;
     }
 
     if (liters === 0) return '0 ml';
@@ -1032,7 +1039,7 @@ function convertText(text) {
     // then restore placeholders so inner tokens won't be double-converted.
     const RANGE_SEP_RE = /^(?:\s*)(?:-|–|—|to|through|thru)(?:\s*)$/i;
     const VALUE_TAIL_RE = new RegExp(
-        String.raw`(${'\\d+\\.\\d+|\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d+[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}]'})\s*(?:-|–|—|to|through|thru)\s*$`,
+        String.raw`(${`(?:\\d{1,3}(?:,\\d{3})+|\\d+)\\.\\d+|(?:\\d{1,3}(?:,\\d{3})+|\\d+)\\s+\\d+\\/\\d+|\\d+\\/\\d+|(?:\\d{1,3}(?:,\\d{3})+|\\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}]`})\s*(?:-|–|—|to|through|thru)\s*$`,
         'iu'
     );
 
@@ -1044,8 +1051,10 @@ function convertText(text) {
     };
 
     function formatNum(n) {
-        const s = n.toFixed(2);
-        return s.replace(/\.?0+$/, '');
+        const s = n.toFixed(2).replace(/\.?0+$/, '');
+        const [intPart, frac] = s.split('.');
+        const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return frac ? `${intWithCommas}.${frac}` : intWithCommas;
     }
 
     function formatLengthRange(m1, m2) {
