@@ -26,7 +26,7 @@ describe('Comma Thousands Parsing and Formatting', () => {
     test('parses comma-separated miles and outputs km with commas', () => {
         document.body.textContent = 'Trip: 1,000 miles';
         processNode(document.body);
-        expect(document.body.textContent).toBe('Trip: 1,000 miles (1,609.34 km)');
+        expect(document.body.textContent).toBe('Trip: 1,000 miles (1,609 km)');
     });
 
     test('parses comma-separated gallons and outputs liters with commas', () => {

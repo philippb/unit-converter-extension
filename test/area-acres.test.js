@@ -19,8 +19,15 @@ describe('Area Conversion (Acres)', () => {
                 input: 'Plot is 0.5 acre',
                 expected: 'Plot is 0.5 acre (2,023.43 m²)',
             },
+            {
+                input: 'The park is 776,000 acres',
+                expected: 'The park is 776,000 acres (3,140 km²)',
+            },
+            {
+                input: 'The reserve spans 776,000.5 acres',
+                expected: 'The reserve spans 776,000.5 acres (3,140 km²)',
+            },
         ];
-
         for (const { input, expected } of cases) {
             expect(convertText(input)).toBe(expected);
         }

@@ -530,15 +530,14 @@ function inferResolutionMetersFromLengthMatch(match, units) {
 function formatLengthMeasurement(meters, options = {}) {
     const { resolutionMeters } = options;
 
-    function chooseDecimals(unitScale) {
-        // Default: keep current UX baseline of 2 decimals; only increase when needed
-        let decimals = 2;
+    function chooseDecimals(unitScale, minDecimals = 2) {
+        // Keep this helper for non-km branches; km branch uses output-based caps.
+        let decimals = minDecimals;
         if (typeof resolutionMeters === 'number' && resolutionMeters > 0) {
-            const stepInUnit = resolutionMeters * unitScale; // convert resolution to the output unit
-            // Determine decimals so that decimal place is not coarser than the step
-            // d = ceil(-log10(step)); clamp to [0, 3], baseline at least 2
+            const stepInUnit = resolutionMeters * unitScale;
             const raw = Math.ceil(-Math.log10(stepInUnit));
-            decimals = Math.max(2, Math.min(3, isFinite(raw) ? raw : 2));
+            const computed = isFinite(raw) ? raw : minDecimals;
+            decimals = Math.max(minDecimals, Math.min(3, computed));
         }
         return decimals;
     }
@@ -554,19 +553,24 @@ function formatLengthMeasurement(meters, options = {}) {
     // Format based on size
     if (meters >= 1000) {
         // kilometers
-        const d = chooseDecimals(1 / 1000); // 1 m -> 0.001 km
-        return `${formatNumber(meters / 1000, d)} km`;
+        const km = meters / 1000;
+        // Output-based precision caps: >=1000 km -> 0; 100–1000 -> 1; <100 -> 2
+        const cap = km >= 1000 ? 0 : km >= 100 ? 1 : 2;
+        // Use cap directly as default; input resolution can increase decimals
+        // but never beyond the cap (and generally won't exceed it).
+        const d = cap;
+        return `${formatNumber(km, d)} km`;
     } else if (meters >= 1) {
         // meters
-        const d = chooseDecimals(1); // 1 m -> 1 m
+        const d = chooseDecimals(1, 2); // 1 m -> 1 m
         return `${formatNumber(meters, d)} m`;
     } else if (meters >= 0.01) {
         // centimeters
-        const d = chooseDecimals(100); // 1 m -> 100 cm
+        const d = chooseDecimals(100, 2); // 1 m -> 100 cm
         return `${formatNumber(meters * 100, d)} cm`;
     } else {
         // millimeters
-        const d = chooseDecimals(1000); // 1 m -> 1000 mm
+        const d = chooseDecimals(1000, 2); // 1 m -> 1000 mm
         return `${formatNumber(meters * 1000, d)} mm`;
     }
 }
@@ -1094,12 +1098,19 @@ function convertLiquidText(text) {
     return converted;
 }
 
-function formatAreaMeasurement(squareMeters) {
-    function formatNumber(num) {
-        const s = (Math.round(num * 100) / 100).toFixed(2).replace(/\.?0+$/, '');
-        const [intPart, frac] = s.split('.');
+function formatAreaMeasurement(squareMeters, options = {}) {
+    const { km2InputDecimalDigits } = options;
+
+    function formatNumberFixed(num, decimals) {
+        const s = num.toFixed(decimals);
+        const [intPart, fracRaw] = s.split('.');
         const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        const frac = (fracRaw || '').replace(/0+$/, '');
         return frac ? `${intWithCommas}.${frac}` : intWithCommas;
+    }
+
+    function formatNumber2(num) {
+        return formatNumberFixed(Math.round(num * 100) / 100, 2);
     }
 
     // Unit selection:
@@ -1108,13 +1119,17 @@ function formatAreaMeasurement(squareMeters) {
     // - km² for >= 100 ha (>= 1,000,000 m²)
     if (squareMeters >= 1_000_000) {
         const km2 = squareMeters / 1_000_000;
-        return `${formatNumber(km2)} km²`;
+        // Output-based precision caps for km²: >=1000 -> 0; 10–1000 -> 1; <10 -> 2
+        const cap = km2 >= 1000 ? 0 : km2 >= 10 ? 1 : 2;
+        // Use cap directly; input decimals can be considered in future but never exceed cap
+        const decimals = cap;
+        return `${formatNumberFixed(km2, decimals)} km²`;
     }
     if (squareMeters >= 10_000) {
         const hectares = squareMeters / 10_000;
-        return `${formatNumber(hectares)} ha`;
+        return `${formatNumber2(hectares)} ha`;
     }
-    return `${formatNumber(squareMeters)} m²`;
+    return `${formatNumber2(squareMeters)} m²`;
 }
 
 function convertAreaText(text) {
@@ -1147,32 +1162,41 @@ function convertAreaText(text) {
             {
                 units: String.raw`(?:sq\.?\s*ft\.?|sq\.?\s*feet|sq\.?\s*foot|square\s+feet|square\s+foot|sqft|ft\s*(?:\^\s*2|²|2))`,
                 factor: AREA_SQFT_TO_SQM,
+                type: 'sqft',
             },
             {
                 units: String.raw`(?:sq\.?\s*in\.?|sq\.?\s*inch(?:es)?|square\s+inch(?:es)?|in\s*(?:\^\s*2|²|2))`,
                 factor: AREA_SQIN_TO_SQM,
+                type: 'sqin',
             },
             {
                 units: String.raw`(?:sq\.?\s*yd\.?|sq\.?\s*yard(?:s)?|square\s+yard(?:s)?|yd\s*(?:\^\s*2|²|2))`,
                 factor: AREA_SQYD_TO_SQM,
+                type: 'sqyd',
             },
             {
                 units: String.raw`(?:sq\.?\s*mi\.?|sq\.?\s*mile(?:s)?|square\s+mile(?:s)?|mi\s*(?:\^\s*2|²|2))`,
                 factor: AREA_SQMI_TO_SQM,
+                type: 'sqmi',
             },
             {
                 units: String.raw`(?:acre(?:s)?)`,
                 factor: AREA_ACRE_TO_SQM,
+                type: 'acre',
             },
         ];
 
-        for (const { units, factor } of groups) {
+        for (const { units, factor, type } of groups) {
             const areaRegex = new RegExp(String.raw`\b(${VALUE_PART})\s*${units}(?!\s*\()`, 'giu');
             converted = converted.replace(areaRegex, function (match, value) {
-                const n = convertToDecimal(String(value));
+                const raw = String(value);
+                const n = convertToDecimal(raw);
                 if (Number.isNaN(n)) return match;
                 const sqm = n * factor;
-                return `${match} (${formatAreaMeasurement(sqm)})`;
+                // Pass input decimal digits; formatter applies output-based caps.
+                const dm = raw.match(/\.(\d+)/);
+                const inputDecimalDigits = dm ? dm[1].length : 0;
+                return `${match} (${formatAreaMeasurement(sqm, { km2InputDecimalDigits: inputDecimalDigits })})`;
             });
         }
     }
