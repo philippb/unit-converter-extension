@@ -259,6 +259,14 @@ describe('Unit Conversion Tests', () => {
         });
     });
 
+    describe('Dynamic Precision for Length', () => {
+        test('matches higher input precision for feet + inches', () => {
+            document.body.textContent = 'Height: 3 ft 3.96 in';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('Height: 3 ft 3.96 in (1.015 m)');
+        });
+    });
+
     describe('Edge Cases', () => {
         test('handles zero measurements', () => {
             document.body.textContent = '0 inches from the wall';

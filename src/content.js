@@ -104,6 +104,27 @@ const UNICODE_FRACTIONS_MAP = {
     '⅑': 1 / 9,
     '⅒': 0.1,
 };
+// Denominator map for unicode vulgar fractions (used to infer resolution)
+const UNICODE_FRACTIONS_DENOM = {
+    '½': 2,
+    '¼': 4,
+    '¾': 4,
+    '⅓': 3,
+    '⅔': 3,
+    '⅕': 5,
+    '⅖': 5,
+    '⅗': 5,
+    '⅘': 5,
+    '⅙': 6,
+    '⅚': 6,
+    '⅛': 8,
+    '⅜': 8,
+    '⅝': 8,
+    '⅞': 8,
+    '⅐': 7,
+    '⅑': 9,
+    '⅒': 10,
+};
 // Updated to support comma thousand separators in numbers (e.g., 1,234 or 1,234.56)
 const MEASUREMENT_REGEX_TEMPLATE = String.raw`\b(?:(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}}))))(?=\b|\W|$)(?!\s*\(.*\))`;
 
@@ -345,10 +366,122 @@ function convertLengthToMeters(feet = 0, inches = 0, miles = 0) {
     );
 }
 
-function formatLengthMeasurement(meters) {
-    function formatNumber(num) {
-        // Convert to string with max 2 decimals, trim zeros, add commas
-        const s = num.toFixed(2).replace(/\.?0+$/, '');
+// Infer numeric resolution (step) from a raw number string and convert to meters by unit
+// E.g., '3.96' in inches -> step 0.01 in -> meters = 0.01 * 0.0254
+function inferResolutionMetersFromNumber(raw, unit) {
+    const step = resolutionStepOfValueString(String(raw));
+    if (!(step > 0)) return undefined;
+    switch (unit) {
+        case 'in':
+            return step * LENGTH_INCH_TO_METERS;
+        case 'ft':
+            return step * LENGTH_FOOT_TO_METERS;
+        case 'mi':
+            return step * LENGTH_MILE_TO_METERS;
+        default:
+            return undefined;
+    }
+}
+
+// Determine the minimal increment present in a numeric token string
+// Supports decimals, vulgar fractions, and a/b fractions (with optional leading whole number)
+function resolutionStepOfValueString(s) {
+    if (!s) return undefined;
+    const str = String(s).trim();
+    // If explicit fraction present like '3 1/8' or '1/8'
+    const slashMatch = str.match(/(\d+)\s*\/\s*(\d+)/);
+    let denom = slashMatch ? parseInt(slashMatch[2], 10) : undefined;
+    // Vulgar (unicode) fraction present
+    let unicodeDenom;
+    for (const ch of str) {
+        if (UNICODE_FRACTIONS_DENOM[ch]) {
+            unicodeDenom = unicodeDenom
+                ? Math.max(unicodeDenom, UNICODE_FRACTIONS_DENOM[ch])
+                : UNICODE_FRACTIONS_DENOM[ch];
+        }
+    }
+    if (unicodeDenom) {
+        // If both forms appear, use the finer denominator (max denominator => smaller step)
+        denom = denom ? Math.max(denom, unicodeDenom) : unicodeDenom;
+    }
+    if (denom && denom > 0) {
+        return 1 / denom;
+    }
+    // Decimal digits
+    const dot = str.indexOf('.');
+    if (dot >= 0) {
+        const dec = str.slice(dot + 1).replace(/\D/g, '');
+        if (dec.length > 0) return Math.pow(10, -dec.length);
+    }
+    // Integer fallback
+    return 1;
+}
+
+// Extract the first numeric token from a mixed match string (used for single-unit cases)
+function extractFirstValueToken(s) {
+    const unicode = UNICODE_FRACTIONS;
+    const re = new RegExp(
+        String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${unicode}]|[${unicode}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))`,
+        'u'
+    );
+    const m = String(s).match(re);
+    return m ? m[0] : '';
+}
+
+// For combined feet+inches matches, infer the smallest step and convert to meters
+function inferResolutionMetersFromLengthMatch(match, units) {
+    try {
+        const unitPattern = new RegExp(`(${units.PRIMARY}|${units.SECONDARY})`, 'i');
+        const parts = match
+            .trim()
+            .split(unitPattern)
+            .map((p) => p.trim())
+            .filter(Boolean);
+        const { primary: rePrimary, secondary: reSecondary } = getUnitRegexes(units);
+        const steps = [];
+        if (parts.length >= 2) {
+            const val1 = parts[0];
+            const unit1 = parts[1].toLowerCase();
+            const step1 = resolutionStepOfValueString(val1);
+            if (step1 && step1 > 0) {
+                if (rePrimary.test(unit1)) steps.push(step1 * LENGTH_FOOT_TO_METERS);
+                else if (reSecondary.test(unit1)) steps.push(step1 * LENGTH_INCH_TO_METERS);
+            }
+        }
+        if (parts.length >= 4) {
+            const val2 = parts[2];
+            const unit2 = parts[3].toLowerCase();
+            const step2 = resolutionStepOfValueString(val2);
+            if (step2 && step2 > 0) {
+                if (reSecondary.test(unit2)) steps.push(step2 * LENGTH_INCH_TO_METERS);
+                else if (rePrimary.test(unit2)) steps.push(step2 * LENGTH_FOOT_TO_METERS);
+            }
+        }
+        if (steps.length === 0) return undefined;
+        return Math.min(...steps);
+    } catch (_) {
+        return undefined;
+    }
+}
+
+function formatLengthMeasurement(meters, options = {}) {
+    const { resolutionMeters } = options;
+
+    function chooseDecimals(unitScale) {
+        // Default: keep current UX baseline of 2 decimals; only increase when needed
+        let decimals = 2;
+        if (typeof resolutionMeters === 'number' && resolutionMeters > 0) {
+            const stepInUnit = resolutionMeters * unitScale; // convert resolution to the output unit
+            // Determine decimals so that decimal place is not coarser than the step
+            // d = ceil(-log10(step)); clamp to [0, 3], baseline at least 2
+            const raw = Math.ceil(-Math.log10(stepInUnit));
+            decimals = Math.max(2, Math.min(3, isFinite(raw) ? raw : 2));
+        }
+        return decimals;
+    }
+
+    function formatNumber(num, decimals) {
+        const s = num.toFixed(decimals).replace(/\.?0+$/, '');
         const [intPart, frac] = s.split('.');
         const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         return frac ? `${intWithCommas}.${frac}` : intWithCommas;
@@ -357,17 +490,21 @@ function formatLengthMeasurement(meters) {
     if (meters === 0) return '0 cm';
     // Format based on size
     if (meters >= 1000) {
-        // For very large measurements: use kilometers
-        return `${formatNumber(meters / 1000)} km`;
+        // kilometers
+        const d = chooseDecimals(1 / 1000); // 1 m -> 0.001 km
+        return `${formatNumber(meters / 1000, d)} km`;
     } else if (meters >= 1) {
-        // For human-scale measurements: use meters
-        return `${formatNumber(meters)} m`;
+        // meters
+        const d = chooseDecimals(1); // 1 m -> 1 m
+        return `${formatNumber(meters, d)} m`;
     } else if (meters >= 0.01) {
-        // For small measurements: use centimeters
-        return `${formatNumber(meters * 100)} cm`;
+        // centimeters
+        const d = chooseDecimals(100); // 1 m -> 100 cm
+        return `${formatNumber(meters * 100, d)} cm`;
     } else {
-        // For very small measurements: use millimeters
-        return `${formatNumber(meters * 1000)} mm`;
+        // millimeters
+        const d = chooseDecimals(1000); // 1 m -> 1000 mm
+        return `${formatNumber(meters * 1000, d)} mm`;
     }
 }
 
@@ -444,19 +581,23 @@ function convertLengthText(text) {
 
     if (converted.includes('"') || converted.includes('″')) {
         converted = converted.replace(inchesSymbolRegex, function (match, value) {
-            const inches = convertToDecimal(String(value));
+            const raw = String(value);
+            const inches = convertToDecimal(raw);
             if (Number.isNaN(inches)) return match;
             const meters = convertLengthToMeters(0, inches, 0);
-            return `${match} (${formatLengthMeasurement(meters)})`;
+            const resolutionMeters = inferResolutionMetersFromNumber(raw, 'in');
+            return `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
         });
     }
 
     if (converted.includes("'") || converted.includes('′')) {
         converted = converted.replace(feetSymbolRegex, function (match, value) {
-            const feet = convertToDecimal(String(value));
+            const raw = String(value);
+            const feet = convertToDecimal(raw);
             if (Number.isNaN(feet)) return match;
             const meters = convertLengthToMeters(feet, 0, 0);
-            return `${match} (${formatLengthMeasurement(meters)})`;
+            const resolutionMeters = inferResolutionMetersFromNumber(raw, 'ft');
+            return `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
         });
     }
     // Convert feet-inches combinations (only if likely present)
@@ -476,7 +617,12 @@ function convertLengthText(text) {
         converted = converted.replace(feetInchesRegex, function (match) {
             const parsed = parseMeasurementMatch(match, UNITS.LENGTH.FEET_INCHES);
             const meters = convertLengthToMeters(parsed.primary.value, parsed.secondary.value);
-            return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
+            if (meters === 0) return match;
+            const resolutionMeters = inferResolutionMetersFromLengthMatch(
+                match,
+                UNITS.LENGTH.FEET_INCHES
+            );
+            return `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
         });
     }
 
@@ -487,7 +633,12 @@ function convertLengthText(text) {
         converted = converted.replace(milesRegex, function (match) {
             const parsed = parseMeasurementMatch(match, UNITS.LENGTH.MILES);
             const meters = convertLengthToMeters(0, 0, parsed.primary.value);
-            return meters === 0 ? match : `${match} (${formatLengthMeasurement(meters)})`;
+            if (meters === 0) return match;
+            const resolutionMeters = inferResolutionMetersFromNumber(
+                extractFirstValueToken(match),
+                'mi'
+            );
+            return `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
         });
     }
 
@@ -1350,5 +1501,10 @@ if (typeof exports !== 'undefined') {
         createRegexFromTemplate,
         parseMeasurementMatch,
         convertTimeZone,
+        // Precision helpers for testing
+        resolutionStepOfValueString,
+        inferResolutionMetersFromNumber,
+        inferResolutionMetersFromLengthMatch,
+        extractFirstValueToken,
     });
 }
