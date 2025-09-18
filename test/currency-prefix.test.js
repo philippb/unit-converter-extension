@@ -14,7 +14,6 @@ describe('Currency-prefixed amounts should not trigger unit conversion', () => {
         processNode(root);
         expect(root.textContent).toBe('Deal: €19 in stock — Save £5 in taxes');
     });
-
     test('still converts valid measurements without currency prefix', () => {
         document.body.innerHTML = '<p>Size: 22 in monitor</p>';
         const root = document.querySelector('p');

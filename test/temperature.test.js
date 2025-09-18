@@ -36,19 +36,21 @@ describe('Temperature Conversion', () => {
         });
     });
 
-    test('converts Celsius to Fahrenheit', () => {
+    test('does not convert Celsius values', () => {
         const { convertTemperatureText } = require('../src/content.js');
 
-        const cases = [
-            { input: 'Bake at 200°C', re: /200°\s*C\s*\(\s*392°\s*F\s*\)/i },
-            { input: 'Simmer at 100 C', re: /100\s*C\s*\(\s*212°\s*F\s*\)/i },
-            { input: 'Low heat 30 deg C', re: /30\s*deg\s*C\s*\(\s*86°\s*F\s*\)/i },
-        ];
+        const cases = ['Bake at 200°C', 'Simmer at 100 C', 'Low heat 30 deg C'];
 
-        cases.forEach(({ input, re }) => {
+        cases.forEach((input) => {
             const out = convertTemperatureText(input);
-            expect(out).toMatch(re);
+            expect(out).toBe(input);
         });
+    });
+
+    test('leaves apartment numbers ending in c unchanged', () => {
+        document.body.textContent = '188 Minna St Apt 22c, San Francisco, CA 94105';
+        processNode(document.body);
+        expect(document.body.textContent).toBe('188 Minna St Apt 22c, San Francisco, CA 94105');
     });
 
     describe('Celsius formatting rules', () => {

@@ -177,13 +177,10 @@ function buildUnitDataFromSpecs(specs) {
 }
 
 const TEMPERATURE_F_REGEX = String.raw`(?<!\()(?<![\d.])\b(\d+(?:\.\d+)?)\s*(?:°\s*F|℉|F\b|deg\s*F|degree\s*F|degrees\s*F|degrees?\s*Fahrenheit|Fahrenheit)\b(?!\s*\()`;
-const TEMPERATURE_C_REGEX = String.raw`(?<!\()(?<![\d.])\b(\d+(?:\.\d+)?)\s*(?:°\s*C|℃|C\b|deg\s*C|degree\s*C|degrees\s*C|degrees?\s*Celsius|Celsius)\b(?!\s*\()`;
 
 // Precompiled temperature regexes
 const RE_TEMPERATURE_F = new RegExp(TEMPERATURE_F_REGEX, 'gi');
-const RE_TEMPERATURE_C = new RegExp(TEMPERATURE_C_REGEX, 'gi');
 const RE_TEMPERATURE_F_TEST = new RegExp(TEMPERATURE_F_REGEX, 'i');
-const RE_TEMPERATURE_C_TEST = new RegExp(TEMPERATURE_C_REGEX, 'i');
 // @ai:keep
 const UNICODE_FRACTIONS = '½¼¾⅓⅔⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒';
 // Currency symbols used to guard against false positives like "$22 in …"
@@ -763,7 +760,7 @@ function hasRelevantUnits(text) {
     // Quick exits: no digits or unicode fractions, and no temperature/time matches
     if (!FAST_NUMBER_HINT_GLOBAL.test(text)) {
         // Temps and times always include digits in our patterns; keep checks anyway
-        if (RE_TEMPERATURE_F_TEST.test(text) || RE_TEMPERATURE_C_TEST.test(text)) return true;
+        if (RE_TEMPERATURE_F_TEST.test(text)) return true;
         if (RE_TIME_TEST.test(text)) return true;
         return false;
     }
@@ -778,7 +775,7 @@ function hasRelevantUnits(text) {
     if (RE_INCH_SYMBOL_HINT.test(text)) return true;
 
     // Also allow clear temperature/time matches
-    if (RE_TEMPERATURE_F_TEST.test(text) || RE_TEMPERATURE_C_TEST.test(text)) return true;
+    if (RE_TEMPERATURE_F_TEST.test(text)) return true;
     if (RE_TIME_TEST.test(text)) return true;
 
     return false;
@@ -1330,18 +1327,6 @@ function convertTemperatureText(text) {
         return `${match} (${formatTemperatureCelsius(c)}°C)`;
     });
 
-    // Celsius to Fahrenheit
-    out = out.replace(RE_TEMPERATURE_C, (match, cStr) => {
-        const c = parseFloat(cStr);
-        if (Number.isNaN(c)) return match;
-        const f = c * (9 / 5) + 32;
-        const fStr = (() => {
-            const s = f.toFixed(2);
-            return s.replace(/\.?0+$/, '');
-        })();
-        return `${match} (${fStr}°F)`;
-    });
-
     return out;
 }
 
@@ -1755,8 +1740,8 @@ function convertText(text) {
         converted = converted.replaceAll(token, replacement);
     }
 
-    // Temperature (Fahrenheit/Celsius)
-    if (RE_TEMPERATURE_F_TEST.test(converted) || RE_TEMPERATURE_C_TEST.test(converted)) {
+    // Temperature (Fahrenheit)
+    if (RE_TEMPERATURE_F_TEST.test(converted)) {
         converted = convertTemperatureText(converted);
     }
 
