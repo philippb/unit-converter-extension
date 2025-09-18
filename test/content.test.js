@@ -1207,21 +1207,21 @@ describe('Time Zone Conversion Tests', () => {
 
 describe('Pre-filter Performance Optimization Tests', () => {
     describe('hasRelevantUnits Function', () => {
-        test('detects length units correctly', () => {
+        test('detects length units correctly (gated by numbers)', () => {
             const lengthCases = [
                 // Positive cases
                 { input: 'The room is 10 feet wide', expected: true },
                 { input: 'A 5 inch gap', expected: true },
                 { input: 'Walk 2 miles', expected: true },
                 { input: 'Height: 6ft 2in', expected: true },
-                { input: 'FEET and INCHES', expected: true }, // Case insensitive
-                { input: 'Text with foot in it', expected: true },
+                { input: 'FEET and INCHES', expected: false }, // Now gated: no numbers
+                { input: 'Text with foot in it', expected: false },
 
                 // Negative cases
                 { input: 'No measurements here', expected: false },
                 { input: 'Just some regular text', expected: false },
                 { input: 'Numbers like 123 and 456', expected: false },
-                { input: 'Feet of clay metaphor', expected: true }, // Will match "feet" - this is expected behavior for performance
+                { input: 'Feet of clay metaphor', expected: false },
             ];
 
             lengthCases.forEach(({ input, expected }) => {
@@ -1229,14 +1229,14 @@ describe('Pre-filter Performance Optimization Tests', () => {
             });
         });
 
-        test('detects weight units correctly', () => {
+        test('detects weight units correctly (gated by numbers)', () => {
             const weightCases = [
                 // Positive cases
                 { input: 'Weighs 150 pounds', expected: true },
                 { input: 'Add 8 ounces', expected: true },
                 { input: 'Weight: 5 lbs', expected: true },
-                { input: 'Contains oz of liquid', expected: true },
-                { input: 'POUNDS and OUNCES', expected: true },
+                { input: 'Contains oz of liquid', expected: false },
+                { input: 'POUNDS and OUNCES', expected: false },
 
                 // Negative cases
                 { input: 'No weight mentioned', expected: false },
@@ -1249,7 +1249,7 @@ describe('Pre-filter Performance Optimization Tests', () => {
             });
         });
 
-        test('detects liquid units correctly', () => {
+        test('detects liquid units correctly (gated by numbers)', () => {
             const liquidCases = [
                 // Positive cases
                 { input: 'Add 2 cups of flour', expected: true },
@@ -1257,7 +1257,7 @@ describe('Pre-filter Performance Optimization Tests', () => {
                 { input: 'Mix 3 tablespoons', expected: true },
                 { input: 'Add 1 tsp vanilla', expected: true },
                 { input: 'Needs 8 fl oz', expected: true },
-                { input: 'Recipe calls for quart', expected: true },
+                { input: 'Recipe calls for quart', expected: false },
 
                 // Negative cases - avoid words containing unit substrings
                 { input: 'No liquid volumes', expected: false }, // Changed from "measurements" to avoid "in"
@@ -1269,14 +1269,14 @@ describe('Pre-filter Performance Optimization Tests', () => {
             });
         });
 
-        test('detects timezone units correctly', () => {
+        test('detects timezone units correctly (requires a time)', () => {
             const timezoneCases = [
                 // Positive cases
                 { input: 'Meeting at 3pm EST', expected: true },
                 { input: 'Call at 9am PST', expected: true },
-                { input: 'Conference GMT timezone', expected: true }, // Removed "in" to avoid false positive
-                { input: 'UTC standard', expected: true }, // Removed "time" to avoid false positive
-                { input: 'cst and mst zones', expected: true },
+                { input: 'Conference GMT timezone', expected: false },
+                { input: 'UTC standard', expected: false },
+                { input: 'cst and mst zones', expected: false },
 
                 // Negative cases - avoid words containing unit substrings
                 { input: 'No zones here', expected: false }, // Removed "time" to avoid false positive
@@ -1288,7 +1288,7 @@ describe('Pre-filter Performance Optimization Tests', () => {
             });
         });
 
-        test('handles edge cases properly', () => {
+        test('handles edge cases properly (gated)', () => {
             const edgeCases = [
                 // Edge inputs
                 { input: '', expected: false },
@@ -1296,9 +1296,9 @@ describe('Pre-filter Performance Optimization Tests', () => {
                 { input: undefined, expected: false },
                 { input: '   ', expected: false }, // Just whitespace
                 { input: '123', expected: false }, // Just numbers
-                { input: 'ft', expected: true }, // Just the unit
-                { input: 'FT', expected: true }, // Unit in caps
-                { input: 'Contains both ft and gal units', expected: true },
+                { input: 'ft', expected: false },
+                { input: 'FT', expected: false },
+                { input: 'Contains both ft and gal units', expected: false },
                 { input: 'Mixed with 5 inches and 2 pounds', expected: true },
             ];
 
@@ -1307,17 +1307,17 @@ describe('Pre-filter Performance Optimization Tests', () => {
             });
         });
 
-        test('is case insensitive', () => {
+        test('is case insensitive (gated)', () => {
             const caseCases = [
-                { input: 'FEET', expected: true },
-                { input: 'Feet', expected: true },
-                { input: 'feet', expected: true },
-                { input: 'FeeT', expected: true },
-                { input: 'GALLON', expected: true },
-                { input: 'Gallon', expected: true },
-                { input: 'EST', expected: true },
-                { input: 'est', expected: true },
-                { input: 'Est', expected: true },
+                { input: 'FEET', expected: false },
+                { input: 'Feet', expected: false },
+                { input: 'feet', expected: false },
+                { input: 'FeeT', expected: false },
+                { input: 'GALLON', expected: false },
+                { input: 'Gallon', expected: false },
+                { input: 'EST', expected: false },
+                { input: 'est', expected: false },
+                { input: 'Est', expected: false },
             ];
 
             caseCases.forEach(({ input, expected }) => {

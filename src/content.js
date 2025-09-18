@@ -1,103 +1,180 @@
 // const regex = /\b(?:(?:(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[ \t\f\v][¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:ounce|oz|mi|pounds|lbs|lb|ft|in)[ \t\f\v]+(?![\r\n])(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[ \t\f\v][¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)+[ \t\f\v]+(?![\r\n])(?:ounce|oz|mi|pounds|lbs|lb|ft|in))|(?:(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[ \t\f\v][¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:ounce|oz|mi|pounds|lbs|lb|ft|in)(?![ \t\f\v]+(?:\d+\.\d+|\d\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅞]|\d\s*\d+\/\d+|\d+\/\d+|\d+)[ \t\f\v]+(?:ounce|oz|mi|pounds|lbs|lb|ft|in))))\b(?!\s*\(.*\))/giu;
 
-// Define unit patterns
-const UNITS = {
+// Canonical unit definitions used to build matcher regexes and hint groups
+const UNIT_SPECS = {
     LENGTH: {
         FEET_INCHES: {
-            PRIMARY: "'|′|feet|foot|ft",
-            SECONDARY: '"|″|inches|inch|in',
+            PRIMARY: ["'", '′', 'feet', 'foot', 'ft'],
+            SECONDARY: ['"', '″', 'inches', 'inch', 'in'],
         },
         MILES: {
-            PRIMARY: 'miles|mile|mi',
+            PRIMARY: ['miles', 'mile', 'mi'],
         },
     },
     AREA: {
-        // Square feet support: e.g., "170 sq ft", "200 square feet", "12 ft²", "sq. ft."
         SQ_FEET: {
-            // Accept common variants with or without periods and with superscript 2
-            // - square feet/foot
-            // - sq ft / sq. ft / sqft
-            // - ft^2 / ft2 / ft²
-            PRIMARY:
-                'square\\s+feet|square\\s+foot|sq\\.?\\s*ft\\.?|sq\\.?\\s*feet|sq\\.?\\s*foot|sq\\.?\\s*ft|sqft|ft\\s*(?:\\^?2|²)|ft2',
+            PRIMARY: [
+                'square\\s+feet',
+                'square\\s+foot',
+                'sq\\.?\\s*ft\\.?',
+                'sq\\.?\\s*feet',
+                'sq\\.?\\s*foot',
+                'sq\\.?\\s*ft',
+                'sqft',
+                'ft\\s*(?:\\^?2|²)',
+                'ft2',
+            ],
         },
         SQ_INCHES: {
-            PRIMARY:
-                'square\\s+inches|square\\s+inch|sq\\.?\\s*in\\.?|sq\\.?\\s*inch(?:es)?|sq\\.?\\s*in|in\\s*(?:\\^?2|²)|in2',
+            PRIMARY: [
+                'square\\s+inches',
+                'square\\s+inch',
+                'sq\\.?\\s*in\\.?',
+                'sq\\.?\\s*inch(?:es)?',
+                'sq\\.?\\s*in',
+                'in\\s*(?:\\^?2|²)',
+                'in2',
+            ],
         },
         SQ_YARDS: {
-            PRIMARY:
-                'square\\s+yards|square\\s+yard|sq\\.?\\s*yd\\.?|sq\\.?\\s*yard(?:s)?|sq\\.?\\s*yd|yd\\s*(?:\\^?2|²)|yd2',
+            PRIMARY: [
+                'square\\s+yards',
+                'square\\s+yard',
+                'sq\\.?\\s*yd\\.?',
+                'sq\\.?\\s*yard(?:s)?',
+                'sq\\.?\\s*yd',
+                'yd\\s*(?:\\^?2|²)',
+                'yd2',
+            ],
         },
         SQ_MILES: {
-            PRIMARY:
-                'square\\s+miles|square\\s+mile|sq\\.?\\s*mi\\.?|sq\\.?\\s*mile(?:s)?|sq\\.?\\s*mi|mi\\s*(?:\\^?2|²)|mi2',
+            PRIMARY: [
+                'square\\s+miles',
+                'square\\s+mile',
+                'sq\\.?\\s*mi\\.?',
+                'sq\\.?\\s*mile(?:s)?',
+                'sq\\.?\\s*mi',
+                'mi\\s*(?:\\^?2|²)',
+                'mi2',
+            ],
         },
         ACRES: {
-            PRIMARY: 'acre(?:s)?',
+            PRIMARY: ['acre(?:s)?'],
         },
     },
     WEIGHT: {
-        PRIMARY: 'pounds|pound|lbs|lb',
-        SECONDARY: 'ounces|ounce|oz',
+        PRIMARY: ['pounds', 'pound', 'lbs', 'lb'],
+        SECONDARY: ['ounces', 'ounce', 'oz'],
     },
     LIQUID: {
         GALLONS_QUARTS: {
-            PRIMARY: 'gallons|gallon|gal',
-            SECONDARY: 'quarts|quart|qt',
+            PRIMARY: ['gallons', 'gallon', 'gal'],
+            SECONDARY: ['quarts', 'quart', 'qt'],
         },
         CUPS_FLOZ: {
-            PRIMARY: 'cups|cup|c',
-            SECONDARY: 'fluid\\s+ounces|fluid\\s+ounce|fl\\.?\\s*oz',
+            PRIMARY: ['cups', 'cup', 'c'],
+            SECONDARY: ['fluid\\s+ounces', 'fluid\\s+ounce', 'fl\\.?\\s*oz'],
         },
         TBSP_TSP: {
-            PRIMARY: 'tablespoons|tablespoon|tbsp|tbs|tb',
-            SECONDARY: 'teaspoons|teaspoon|tsp|ts',
+            PRIMARY: ['tablespoons', 'tablespoon', 'tbsp', 'tbs', 'tb'],
+            SECONDARY: ['teaspoons', 'teaspoon', 'tsp', 'ts'],
         },
-        // Keep individual units for standalone measurements
         GALLONS: {
-            PRIMARY: 'gallons|gallon|gal',
+            PRIMARY: ['gallons', 'gallon', 'gal'],
         },
         QUARTS: {
-            PRIMARY: 'quarts|quart|qt',
+            PRIMARY: ['quarts', 'quart', 'qt'],
         },
         PINTS: {
-            PRIMARY: 'pints|pint|pt',
+            PRIMARY: ['pints', 'pint', 'pt'],
         },
         CUPS: {
-            PRIMARY: 'cups|cup|c',
+            PRIMARY: ['cups', 'cup', 'c'],
         },
         FLOZ: {
-            PRIMARY: 'fluid\\s+ounces|fluid\\s+ounce|fl\\.?\\s*oz',
+            PRIMARY: ['fluid\\s+ounces', 'fluid\\s+ounce', 'fl\\.?\\s*oz'],
         },
         TBSP: {
-            PRIMARY: 'tablespoons|tablespoon|tbsp|tbs|tb',
+            PRIMARY: ['tablespoons', 'tablespoon', 'tbsp', 'tbs', 'tb'],
         },
         TSP: {
-            PRIMARY: 'teaspoons|teaspoon|tsp|ts',
+            PRIMARY: ['teaspoons', 'teaspoon', 'tsp', 'ts'],
         },
     },
-    // Time zone patterns
     TIME_ZONE: {
-        // Standard abbreviations
         ABBREVIATIONS: {
-            // US Time Zones
-            EST: 'EST', // Eastern Standard Time (UTC-5)
-            CST: 'CST', // Central Standard Time (UTC-6)
-            MST: 'MST', // Mountain Standard Time (UTC-7)
-            PST: 'PST', // Pacific Standard Time (UTC-8)
-            EDT: 'EDT', // Eastern Daylight Time (UTC-4)
-            CDT: 'CDT', // Central Daylight Time (UTC-5)
-            MDT: 'MDT', // Mountain Daylight Time (UTC-6)
-            PDT: 'PDT', // Pacific Daylight Time (UTC-7)
-            // Other common abbreviations
-            GMT: 'GMT', // Greenwich Mean Time (UTC+0)
-            UTC: 'UTC', // Coordinated Universal Time (UTC+0)
+            EST: ['EST'],
+            CST: ['CST'],
+            MST: ['MST'],
+            PST: ['PST'],
+            EDT: ['EDT'],
+            CDT: ['CDT'],
+            MDT: ['MDT'],
+            PDT: ['PDT'],
+            GMT: ['GMT'],
+            UTC: ['UTC'],
         },
-        // GMT/UTC offset format
-        OFFSET: 'GMT|UTC',
+        OFFSET: ['GMT', 'UTC'],
     },
 };
+
+const { UNITS, UNIT_HINT_PATTERN } = buildUnitDataFromSpecs(UNIT_SPECS);
+
+function buildUnitDataFromSpecs(specs) {
+    const hintPieces = new Set();
+
+    function shouldIncludeInHints(token) {
+        return typeof token === 'string' && !/^[a-zA-Z]$/.test(token);
+    }
+
+    function compile(node, allowHints) {
+        if (Array.isArray(node)) {
+            const unique = [];
+            const seen = new Set();
+            for (const token of node) {
+                if (typeof token !== 'string') continue;
+                if (!seen.has(token)) {
+                    unique.push(token);
+                    seen.add(token);
+                }
+                if (allowHints && shouldIncludeInHints(token)) {
+                    hintPieces.add(token);
+                }
+            }
+            return unique.join('|');
+        }
+        if (node && typeof node === 'object') {
+            const result = {};
+            const explicitHints = Array.isArray(node.HINTS) ? node.HINTS : null;
+            if (explicitHints) {
+                for (const token of explicitHints) {
+                    if (shouldIncludeInHints(token)) {
+                        hintPieces.add(token);
+                    }
+                }
+            }
+            const nextAllowHints = allowHints && !explicitHints;
+            for (const [key, value] of Object.entries(node)) {
+                if (key === 'HINTS') continue;
+                result[key] = compile(value, nextAllowHints);
+            }
+            return result;
+        }
+        return node;
+    }
+
+    const units = {};
+    for (const [category, value] of Object.entries(specs)) {
+        units[category] = compile(value, true);
+    }
+
+    const hintPattern = Array.from(hintPieces)
+        .filter(Boolean)
+        .sort((a, b) => (a > b ? 1 : a < b ? -1 : 0))
+        .join('|');
+
+    return { UNITS: units, UNIT_HINT_PATTERN: hintPattern };
+}
 
 const TEMPERATURE_F_REGEX = String.raw`(?<!\()(?<![\d.])\b(\d+(?:\.\d+)?)\s*(?:°\s*F|℉|F\b|deg\s*F|degree\s*F|degrees\s*F|degrees?\s*Fahrenheit|Fahrenheit)\b(?!\s*\()`;
 const TEMPERATURE_C_REGEX = String.raw`(?<!\()(?<![\d.])\b(\d+(?:\.\d+)?)\s*(?:°\s*C|℃|C\b|deg\s*C|degree\s*C|degrees\s*C|degrees?\s*Celsius|Celsius)\b(?!\s*\()`;
@@ -109,6 +186,16 @@ const RE_TEMPERATURE_F_TEST = new RegExp(TEMPERATURE_F_REGEX, 'i');
 const RE_TEMPERATURE_C_TEST = new RegExp(TEMPERATURE_C_REGEX, 'i');
 // @ai:keep
 const UNICODE_FRACTIONS = '½¼¾⅓⅔⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒';
+// Currency symbols used to guard against false positives like "$22 in …"
+const CURRENCY_SYMBOLS = '$€£¥₹₽₩₺₪₫₴₦₱฿₭₲₡₵₸₼₾₿';
+function hasCurrencyPrefix(s, startIndex) {
+    if (!s || typeof s !== 'string') return false;
+    let i = startIndex - 1;
+    while (i >= 0 && /\s/.test(s[i])) i--;
+    if (i < 0) return false;
+    const ch = s[i];
+    return CURRENCY_SYMBOLS.includes(ch);
+}
 // Precompute unicode fraction map once
 const UNICODE_FRACTIONS_MAP = {
     '½': 0.5,
@@ -179,102 +266,6 @@ const TIME_ZONE_OFFSETS = {
 // Target timezone for conversion (PST = UTC-8)
 const TARGET_TIMEZONE = 'PST';
 const TARGET_TIMEZONE_OFFSET = -8;
-
-// Fast unit detection keywords for pre-filtering
-const UNIT_KEYWORDS = [
-    // Length units
-    'ft',
-    'feet',
-    'foot',
-    'in',
-    'inch',
-    'inches',
-    '"',
-    "'",
-    '″',
-    '′',
-    'mi',
-    'mile',
-    'miles',
-    // Weight units
-    'lb',
-    'lbs',
-    'pound',
-    'pounds',
-    'oz',
-    'ounce',
-    'ounces',
-    // Liquid units
-    'gal',
-    'gallon',
-    'gallons',
-    'qt',
-    'quart',
-    'quarts',
-    'pt',
-    'pint',
-    'pints',
-    'cup',
-    'cups',
-    'fl oz',
-    'fluid ounce',
-    'fluid ounces',
-    'tbsp',
-    'tablespoon',
-    'tablespoons',
-    'tsp',
-    'teaspoon',
-    'teaspoons',
-    'tbs',
-    'tb',
-    // Area units
-    'sq ft',
-    'sq. ft',
-    'square foot',
-    'square feet',
-    'sqft',
-    'ft²',
-    'ft^2',
-    'sq in',
-    'sq. in',
-    'square inch',
-    'square inches',
-    'in²',
-    'in^2',
-    'sq yd',
-    'sq. yd',
-    'square yard',
-    'square yards',
-    'yd²',
-    'yd^2',
-    'sq mi',
-    'sq. mi',
-    'square mile',
-    'square miles',
-    'mi²',
-    'mi^2',
-    // Acres
-    'acre',
-    'acres',
-    // Time zone abbreviations
-    'est',
-    'cst',
-    'mst',
-    'pst',
-    'edt',
-    'cdt',
-    'mdt',
-    'pdt',
-    'gmt',
-    'utc',
-    // Temperature
-    '°f',
-    '℉',
-    'fahrenheit',
-    '°c',
-    '℃',
-    'celsius',
-];
 
 // URL blacklist - domains where the extension should not run
 // Block most Google properties but allow Gmail (mail.google.*)
@@ -385,9 +376,10 @@ function createRegexFromTemplate(unitBig, unitSmall = '') {
     const cached = measureRegexCache.get(key);
     if (cached) return cached;
     // Replace placeholders in template with actual unit patterns
+    const combined = unitSmall && unitSmall.length > 0 ? `${unitBig}|${unitSmall}` : unitBig;
     let regexStr = MEASUREMENT_REGEX_TEMPLATE.replace('{{UNIT_BIG}}', unitBig || '')
         .replace('{{UNIT_SMALL}}', unitSmall || '')
-        .replaceAll('{{UNIT_COMBINED}}', `${unitBig}|${unitSmall}` || '');
+        .replaceAll('{{UNIT_COMBINED}}', combined || '');
 
     const compiled = new RegExp(regexStr, 'giu');
     measureRegexCache.set(key, compiled);
@@ -647,7 +639,13 @@ function convertLengthText(text) {
     const feetSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:'|′)(?!\s*\()`, 'giu');
 
     if (converted.includes('"') || converted.includes('″')) {
-        converted = converted.replace(inchesSymbolRegex, function (match, value) {
+        converted = converted.replace(inchesSymbolRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const value = args[1];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             const raw = String(value);
             const inches = convertToDecimal(raw);
             if (Number.isNaN(inches)) return match;
@@ -658,7 +656,13 @@ function convertLengthText(text) {
     }
 
     if (converted.includes("'") || converted.includes('′')) {
-        converted = converted.replace(feetSymbolRegex, function (match, value) {
+        converted = converted.replace(feetSymbolRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const value = args[1];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             const raw = String(value);
             const feet = convertToDecimal(raw);
             if (Number.isNaN(feet)) return match;
@@ -686,6 +690,7 @@ function convertLengthText(text) {
             const match = args[0];
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             // Do not treat as linear length if immediately followed by a squared marker (ft², ft^2)
             if (s) {
                 const after = s.slice(offset + match.length, offset + match.length + 3);
@@ -711,6 +716,7 @@ function convertLengthText(text) {
             const match = args[0];
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             // Skip if squared marker immediately follows (mi², mi^2)
             if (s) {
                 const after = s.slice(offset + match.length, offset + match.length + 3);
@@ -736,15 +742,46 @@ function convertLengthText(text) {
  * @param {string} text - The text to check
  * @returns {boolean} - True if text might contain convertible units
  */
+// Lightweight numeric + unit hint to gate scanning for all units (abbrev + spelled-out)
+const FAST_NUMBER_HINT_GLOBAL = new RegExp(String.raw`[0-9${UNICODE_FRACTIONS}]`, 'u');
+const UNIT_HINT_GROUP = new RegExp(`(?:${UNIT_HINT_PATTERN})`, 'iu');
+const NUM_TOKEN_GROUP = (function () {
+    const unicode = UNICODE_FRACTIONS;
+    // decimal | mixed a b/c | simple a/b | unicode fraction | integer with thousands
+    const num = String.raw`(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|[${unicode}]|(?:\d{1,3}(?:,\d{3})+|\d+)`;
+    return new RegExp(num, 'u');
+})();
+const RE_UNIT_NUM_HINT = (function () {
+    const num = NUM_TOKEN_GROUP.source;
+    const unit = UNIT_HINT_GROUP.source;
+    return new RegExp(`(?:${num})\\s*(?:${unit})|(?:${unit})\\s*(?:${num})`, 'iu');
+})();
+
 function hasRelevantUnits(text) {
-    if (!text || typeof text !== 'string') {
+    if (!text || typeof text !== 'string') return false;
+
+    // Quick exits: no digits or unicode fractions, and no temperature/time matches
+    if (!FAST_NUMBER_HINT_GLOBAL.test(text)) {
+        // Temps and times always include digits in our patterns; keep checks anyway
+        if (RE_TEMPERATURE_F_TEST.test(text) || RE_TEMPERATURE_C_TEST.test(text)) return true;
+        if (RE_TIME_TEST.test(text)) return true;
         return false;
     }
 
-    const lowerText = text.toLowerCase();
+    // Gate all units (abbr + words) on numeric proximity
+    if (RE_UNIT_NUM_HINT.test(text)) return true;
 
-    // Fast string search - much faster than regex
-    return UNIT_KEYWORDS.some((unit) => lowerText.includes(unit));
+    // Handle inch symbol forms like 12" or ⅛"
+    const unicode = UNICODE_FRACTIONS;
+    const numToken = String.raw`(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|[${unicode}]|(?:\d{1,3}(?:,\d{3})+|\d+)`;
+    const RE_INCH_SYMBOL_HINT = new RegExp(String.raw`(?:${numToken})\s*(?:"|″)`, 'u');
+    if (RE_INCH_SYMBOL_HINT.test(text)) return true;
+
+    // Also allow clear temperature/time matches
+    if (RE_TEMPERATURE_F_TEST.test(text) || RE_TEMPERATURE_C_TEST.test(text)) return true;
+    if (RE_TIME_TEST.test(text)) return true;
+
+    return false;
 }
 
 function isEditableContext(node) {
@@ -764,6 +801,29 @@ function isEditableContext(node) {
     return false;
 }
 
+// Skip non-textual or executable containers to avoid breaking pages
+const SKIP_TAGS = new Set([
+    'SCRIPT',
+    'STYLE',
+    'NOSCRIPT',
+    'IFRAME',
+    'OBJECT',
+    'EMBED',
+    'SVG',
+    'MATH',
+    'HEAD',
+    'TITLE',
+]);
+
+function isInSkippableContainer(node) {
+    let current = node && node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+    while (current) {
+        if (current.tagName && SKIP_TAGS.has(current.tagName)) return true;
+        current = current.parentNode;
+    }
+    return false;
+}
+
 /**
  * Optimized processing that skips entire element subtrees without relevant units
  * @param {Node} node - The DOM node to process
@@ -773,15 +833,14 @@ function processElement(node) {
     if (isEditableContext(node)) {
         return;
     }
+    // Skip script/style and similar non-rendered/executable containers
+    if (isInSkippableContainer(node)) {
+        return;
+    }
 
     // For element nodes, check entire textContent first to skip whole subtree if no units
     if (node.nodeType === Node.ELEMENT_NODE) {
-        // Quick check: if element has no text content with units, skip entire subtree
-        if (!hasRelevantUnits(node.textContent)) {
-            return;
-        }
-
-        // If element might have units, process its children
+        // Process children; text-node fast paths and SKIP_TAGS keep this efficient
         for (const childNode of node.childNodes) {
             processElement(childNode);
         }
@@ -805,7 +864,12 @@ function processElement(node) {
             return;
         }
 
-        if (hasRelevantUnits(originalText)) {
+        // Skip text nodes that do not contain relevant number+unit hints
+        if (!hasRelevantUnits(originalText)) {
+            return;
+        }
+
+        {
             const newText = convertText(originalText);
             if (originalText !== newText) {
                 // Build a fragment that preserves original text and wraps inserted
@@ -940,10 +1004,14 @@ if (typeof window !== 'undefined' && !isBlacklistedUrl(window.location.href)) {
         }
     });
 
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-    });
+    try {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+    } catch (_) {
+        // In rare cases body may not be ready; ignore.
+    }
 }
 
 // Add these new functions
@@ -977,7 +1045,12 @@ function convertWeightText(text) {
         lower.includes('ounce')
     ) {
         const weightRegex = createRegexFromTemplate(UNITS.WEIGHT.PRIMARY, UNITS.WEIGHT.SECONDARY);
-        converted = converted.replace(weightRegex, function (match) {
+        converted = converted.replace(weightRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.WEIGHT);
             const grams = convertWeightToGrams(parsed.primary.value, parsed.secondary.value);
             return grams === 0 ? match : `${match} (${formatWeightMeasurement(grams)})`;
@@ -1008,6 +1081,8 @@ function convertLiquidText(text) {
     let converted = text;
     const lower = converted.toLowerCase();
 
+    // (standalone fluid ounces handled in the combined cups/fl oz and FLOZ branches below)
+
     // Convert gallons-quarts combinations
     if (
         lower.includes('gal') ||
@@ -1020,7 +1095,12 @@ function convertLiquidText(text) {
             UNITS.LIQUID.GALLONS_QUARTS.SECONDARY
         );
 
-        converted = converted.replace(gallonsQuartsRegex, function (match) {
+        converted = converted.replace(gallonsQuartsRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS_QUARTS);
             const liters =
                 parsed.primary.value * LIQUID_GALLON_TO_L +
@@ -1035,7 +1115,12 @@ function convertLiquidText(text) {
             UNITS.LIQUID.CUPS_FLOZ.SECONDARY
         );
 
-        converted = converted.replace(cupsFluidOuncesRegex, function (match) {
+        converted = converted.replace(cupsFluidOuncesRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.CUPS_FLOZ);
             const liters =
                 parsed.primary.value * LIQUID_CUP_TO_L + parsed.secondary.value * LIQUID_FLOZ_TO_L;
@@ -1054,7 +1139,12 @@ function convertLiquidText(text) {
             UNITS.LIQUID.TBSP_TSP.SECONDARY
         );
 
-        converted = converted.replace(tablespoonsTeaspoonsRegex, function (match) {
+        converted = converted.replace(tablespoonsTeaspoonsRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.TBSP_TSP);
             const liters =
                 parsed.primary.value * LIQUID_TBSP_TO_L + parsed.secondary.value * LIQUID_TSP_TO_L;
@@ -1066,7 +1156,12 @@ function convertLiquidText(text) {
     if (lower.includes('gal') || lower.includes('gallon')) {
         const gallonsRegex = createRegexFromTemplate(UNITS.LIQUID.GALLONS.PRIMARY, '');
 
-        converted = converted.replace(gallonsRegex, function (match) {
+        converted = converted.replace(gallonsRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS);
             const liters = parsed.primary.value * LIQUID_GALLON_TO_L;
             return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
@@ -1077,7 +1172,12 @@ function convertLiquidText(text) {
     if (lower.includes('quart') || lower.includes('qt')) {
         const quartsRegex = createRegexFromTemplate(UNITS.LIQUID.QUARTS.PRIMARY, '');
 
-        converted = converted.replace(quartsRegex, function (match) {
+        converted = converted.replace(quartsRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.QUARTS);
             const liters = parsed.primary.value * LIQUID_QUART_TO_L;
             return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
@@ -1088,7 +1188,12 @@ function convertLiquidText(text) {
     if (lower.includes('pint')) {
         const pintsRegex = createRegexFromTemplate(UNITS.LIQUID.PINTS.PRIMARY, '');
 
-        converted = converted.replace(pintsRegex, function (match) {
+        converted = converted.replace(pintsRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.PINTS);
             const liters = parsed.primary.value * LIQUID_PINT_TO_L;
             return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
@@ -1188,7 +1293,13 @@ function convertAreaText(text) {
 
         for (const { units, factor, type } of groups) {
             const areaRegex = new RegExp(String.raw`\b(${VALUE_PART})\s*${units}(?!\s*\()`, 'giu');
-            converted = converted.replace(areaRegex, function (match, value) {
+            converted = converted.replace(areaRegex, function () {
+                const args = Array.from(arguments);
+                const match = args[0];
+                const value = args[1];
+                const offset = args[args.length - 2];
+                const s = args[args.length - 1];
+                if (s && hasCurrencyPrefix(s, offset)) return match;
                 const raw = String(value);
                 const n = convertToDecimal(raw);
                 if (Number.isNaN(n)) return match;
