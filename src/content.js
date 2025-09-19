@@ -418,21 +418,32 @@ function convertLengthToMeters(feet = 0, inches = 0, miles = 0) {
     );
 }
 
-// Infer numeric resolution (step) from a raw number string and convert to meters by unit
-// E.g., '3.96' in inches -> step 0.01 in -> meters = 0.01 * 0.0254
-function inferResolutionMetersFromNumber(raw, unit) {
+// Infer numeric resolution (step) from a raw number string converted into a base unit scale
+function inferResolutionFromValue(raw, unitScale) {
+    if (!raw || !(unitScale > 0)) return undefined;
     const step = resolutionStepOfValueString(String(raw));
     if (!(step > 0)) return undefined;
-    switch (unit) {
-        case 'in':
-            return step * LENGTH_INCH_TO_METERS;
-        case 'ft':
-            return step * LENGTH_FOOT_TO_METERS;
-        case 'mi':
-            return step * LENGTH_MILE_TO_METERS;
-        default:
-            return undefined;
+    return step * unitScale;
+}
+
+function mergeResolutionSteps(steps) {
+    let best;
+    for (const step of steps) {
+        if (!(step > 0)) continue;
+        best = best === undefined ? step : Math.min(best, step);
     }
+    return best;
+}
+
+// Infer numeric resolution (step) from a raw number string and convert to meters by unit keyword
+// E.g., '3.96' in inches -> step 0.01 in -> meters = 0.01 * 0.0254
+function inferResolutionMetersFromNumber(raw, unit) {
+    const scaleMap = {
+        in: LENGTH_INCH_TO_METERS,
+        ft: LENGTH_FOOT_TO_METERS,
+        mi: LENGTH_MILE_TO_METERS,
+    };
+    return inferResolutionFromValue(raw, scaleMap[unit]);
 }
 
 // Determine the minimal increment present in a numeric token string
@@ -509,59 +520,127 @@ function inferResolutionMetersFromLengthMatch(match, units) {
                 else if (rePrimary.test(unit2)) steps.push(step2 * LENGTH_FOOT_TO_METERS);
             }
         }
-        if (steps.length === 0) return undefined;
-        return Math.min(...steps);
+        return mergeResolutionSteps(steps);
     } catch (_) {
         return undefined;
     }
 }
 
+function computeDecimalPlaces({
+    valueInUnit,
+    resolutionBase,
+    unitScale,
+    minDecimals = 0,
+    maxDecimals = 6,
+    magnitudeCaps = null,
+    allowResolution = true,
+}) {
+    let effectiveMin = Math.max(0, minDecimals);
+    let effectiveMax = Math.max(effectiveMin, maxDecimals);
+
+    if (Array.isArray(magnitudeCaps) && magnitudeCaps.length > 0) {
+        for (const { threshold, decimals } of magnitudeCaps) {
+            if (Math.abs(valueInUnit) >= threshold) {
+                effectiveMax = Math.min(effectiveMax, decimals);
+                break;
+            }
+        }
+        if (effectiveMax < effectiveMin) {
+            effectiveMin = effectiveMax;
+        }
+    }
+
+    let decimals = allowResolution === false ? effectiveMax : effectiveMin;
+    if (allowResolution && typeof resolutionBase === 'number' && resolutionBase > 0) {
+        const resolutionInUnit = resolutionBase * unitScale;
+        if (resolutionInUnit > 0) {
+            const raw = Math.ceil(-Math.log10(resolutionInUnit));
+            if (Number.isFinite(raw)) {
+                decimals = Math.max(decimals, raw);
+            }
+        }
+    }
+
+    decimals = Math.min(decimals, effectiveMax);
+    if (!Number.isFinite(decimals) || decimals < 0) decimals = 0;
+    return Math.floor(decimals);
+}
+
+function formatNumberWithGrouping(num, decimals) {
+    const fixed = num.toFixed(Math.max(decimals, 0));
+    const trimmed = decimals > 0 ? fixed.replace(/\.?0+$/, '') : fixed;
+    const [intPart, frac] = trimmed.split('.');
+    const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return frac ? `${intWithCommas}.${frac}` : intWithCommas;
+}
+
+function formatMeasurement(baseValue, options) {
+    const { resolutionBase, units } = options;
+    if (!(units && units.length)) return '';
+    const lastIndex = units.length - 1;
+    for (let i = 0; i < units.length; i++) {
+        const config = units[i];
+        const { threshold, scale, label } = config;
+        const matches = Math.abs(baseValue) >= threshold || i === lastIndex;
+        if (!matches) continue;
+        const valueInUnit = baseValue * scale;
+        const decimals = computeDecimalPlaces({
+            valueInUnit,
+            resolutionBase,
+            unitScale: scale,
+            minDecimals: config.minDecimals,
+            maxDecimals: config.maxDecimals,
+            magnitudeCaps: config.magnitudeCaps,
+            allowResolution: config.allowResolution !== false,
+        });
+        return `${formatNumberWithGrouping(valueInUnit, decimals)} ${label}`;
+    }
+    return '';
+}
+
 function formatLengthMeasurement(meters, options = {}) {
     const { resolutionMeters } = options;
-
-    function chooseDecimals(unitScale, minDecimals = 2) {
-        // Keep this helper for non-km branches; km branch uses output-based caps.
-        let decimals = minDecimals;
-        if (typeof resolutionMeters === 'number' && resolutionMeters > 0) {
-            const stepInUnit = resolutionMeters * unitScale;
-            const raw = Math.ceil(-Math.log10(stepInUnit));
-            const computed = isFinite(raw) ? raw : minDecimals;
-            decimals = Math.max(minDecimals, Math.min(3, computed));
-        }
-        return decimals;
-    }
-
-    function formatNumber(num, decimals) {
-        const s = num.toFixed(decimals).replace(/\.?0+$/, '');
-        const [intPart, frac] = s.split('.');
-        const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        return frac ? `${intWithCommas}.${frac}` : intWithCommas;
-    }
-
     if (meters === 0) return '0 cm';
-    // Format based on size
-    if (meters >= 1000) {
-        // kilometers
-        const km = meters / 1000;
-        // Output-based precision caps: >=1000 km -> 0; 100–1000 -> 1; <100 -> 2
-        const cap = km >= 1000 ? 0 : km >= 100 ? 1 : 2;
-        // Use cap directly as default; input resolution can increase decimals
-        // but never beyond the cap (and generally won't exceed it).
-        const d = cap;
-        return `${formatNumber(km, d)} km`;
-    } else if (meters >= 1) {
-        // meters
-        const d = chooseDecimals(1, 2); // 1 m -> 1 m
-        return `${formatNumber(meters, d)} m`;
-    } else if (meters >= 0.01) {
-        // centimeters
-        const d = chooseDecimals(100, 2); // 1 m -> 100 cm
-        return `${formatNumber(meters * 100, d)} cm`;
-    } else {
-        // millimeters
-        const d = chooseDecimals(1000, 2); // 1 m -> 1000 mm
-        return `${formatNumber(meters * 1000, d)} mm`;
-    }
+
+    return formatMeasurement(meters, {
+        resolutionBase: resolutionMeters,
+        units: [
+            {
+                threshold: 1000,
+                scale: 1 / 1000,
+                label: 'km',
+                minDecimals: 0,
+                maxDecimals: 2,
+                magnitudeCaps: [
+                    { threshold: 1000, decimals: 0 },
+                    { threshold: 100, decimals: 1 },
+                    { threshold: 0, decimals: 2 },
+                ],
+                allowResolution: false,
+            },
+            {
+                threshold: 1,
+                scale: 1,
+                label: 'm',
+                minDecimals: 2,
+                maxDecimals: 3,
+            },
+            {
+                threshold: 0.01,
+                scale: 100,
+                label: 'cm',
+                minDecimals: 2,
+                maxDecimals: 3,
+            },
+            {
+                threshold: 0,
+                scale: 1000,
+                label: 'mm',
+                minDecimals: 2,
+                maxDecimals: 3,
+            },
+        ],
+    });
 }
 
 /**
@@ -597,35 +676,54 @@ function parseMeasurementMatch(match, units) {
         secondaryValue = 0;
     let primaryUnit = null,
         secondaryUnit = null;
+    let primaryRaw = null,
+        secondaryRaw = null;
 
     if (parts.length >= 2) {
-        const firstValue = convertToDecimal(parts[0]);
+        const firstValueRaw = parts[0];
+        const firstValue = convertToDecimal(firstValueRaw);
         const firstUnit = parts[1].toLowerCase();
         const { primary: rePrimary, secondary: reSecondary } = getUnitRegexes(units);
         if (rePrimary.test(firstUnit)) {
             primaryValue = firstValue;
             primaryUnit = firstUnit;
+            primaryRaw = firstValueRaw;
 
             // Check for secondary measurement
             if (parts.length >= 4) {
-                const secondValue = convertToDecimal(parts[2]);
+                const secondValueRaw = parts[2];
+                const secondValue = convertToDecimal(secondValueRaw);
                 const secondUnit = parts[3].toLowerCase();
                 if (reSecondary.test(secondUnit)) {
                     secondaryValue = secondValue;
                     secondaryUnit = secondUnit;
+                    secondaryRaw = secondValueRaw;
                 }
             }
         } else if (reSecondary.test(firstUnit)) {
             // Handle case where only secondary unit is present
             secondaryValue = firstValue;
             secondaryUnit = firstUnit;
+            secondaryRaw = firstValueRaw;
         }
     }
 
     return {
-        primary: { value: primaryValue, unit: primaryUnit },
-        secondary: { value: secondaryValue, unit: secondaryUnit },
+        primary: { value: primaryValue, unit: primaryUnit, raw: primaryRaw },
+        secondary: { value: secondaryValue, unit: secondaryUnit, raw: secondaryRaw },
     };
+}
+
+function inferResolutionFromParsedMeasurement(parsed, scales = {}) {
+    if (!parsed || typeof parsed !== 'object') return undefined;
+    const steps = [];
+    if (parsed.primary && parsed.primary.raw && scales.primary) {
+        steps.push(inferResolutionFromValue(parsed.primary.raw, scales.primary));
+    }
+    if (parsed.secondary && parsed.secondary.raw && scales.secondary) {
+        steps.push(inferResolutionFromValue(parsed.secondary.raw, scales.secondary));
+    }
+    return mergeResolutionSteps(steps);
 }
 
 function convertLengthText(text) {
@@ -1016,20 +1114,29 @@ function convertWeightToGrams(pounds = 0, ounces = 0) {
     return pounds * WEIGHT_POUND_TO_GRAMS + ounces * WEIGHT_OUNCE_TO_GRAMS;
 }
 
-function formatWeightMeasurement(grams) {
-    function formatNumber(num) {
-        const s = num.toFixed(2).replace(/\.?0+$/, '');
-        const [intPart, frac] = s.split('.');
-        const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        return frac ? `${intWithCommas}.${frac}` : intWithCommas;
-    }
-
+function formatWeightMeasurement(grams, options = {}) {
+    const { resolutionGrams } = options;
     if (grams === 0) return '0 g';
-    if (grams >= 1000) {
-        return `${formatNumber(grams / 1000)} kg`;
-    } else {
-        return `${formatNumber(grams)} g`;
-    }
+
+    return formatMeasurement(grams, {
+        resolutionBase: resolutionGrams,
+        units: [
+            {
+                threshold: 1000,
+                scale: 1 / 1000,
+                label: 'kg',
+                minDecimals: 2,
+                maxDecimals: 4,
+            },
+            {
+                threshold: 0,
+                scale: 1,
+                label: 'g',
+                minDecimals: 2,
+                maxDecimals: 4,
+            },
+        ],
+    });
 }
 
 function convertWeightText(text) {
@@ -1050,28 +1157,40 @@ function convertWeightText(text) {
             if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.WEIGHT);
             const grams = convertWeightToGrams(parsed.primary.value, parsed.secondary.value);
-            return grams === 0 ? match : `${match} (${formatWeightMeasurement(grams)})`;
+            if (grams === 0) return match;
+            const resolutionGrams = inferResolutionFromParsedMeasurement(parsed, {
+                primary: WEIGHT_POUND_TO_GRAMS,
+                secondary: WEIGHT_OUNCE_TO_GRAMS,
+            });
+            return `${match} (${formatWeightMeasurement(grams, { resolutionGrams })})`;
         });
     }
     return converted;
 }
 
-function formatLiquidMeasurement(liters) {
-    function formatNumber(num) {
-        // Round to 2 decimals, trim zeros, add commas
-        const rounded = Math.round(num * 100) / 100;
-        const s = rounded.toFixed(2).replace(/\.?0+$/, '');
-        const [intPart, frac] = s.split('.');
-        const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        return frac ? `${intWithCommas}.${frac}` : intWithCommas;
-    }
-
+function formatLiquidMeasurement(liters, options = {}) {
+    const { resolutionLiters } = options;
     if (liters === 0) return '0 ml';
-    if (liters >= 0.25) {
-        return `${formatNumber(liters)} L`;
-    } else {
-        return `${formatNumber(liters * 1000)} ml`;
-    }
+
+    return formatMeasurement(liters, {
+        resolutionBase: resolutionLiters,
+        units: [
+            {
+                threshold: 0.25,
+                scale: 1,
+                label: 'L',
+                minDecimals: 2,
+                maxDecimals: 4,
+            },
+            {
+                threshold: 0,
+                scale: 1000,
+                label: 'ml',
+                minDecimals: 2,
+                maxDecimals: 4,
+            },
+        ],
+    });
 }
 
 function convertLiquidText(text) {
@@ -1102,7 +1221,12 @@ function convertLiquidText(text) {
             const liters =
                 parsed.primary.value * LIQUID_GALLON_TO_L +
                 parsed.secondary.value * LIQUID_QUART_TO_L;
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+            if (liters === 0) return match;
+            const resolutionLiters = inferResolutionFromParsedMeasurement(parsed, {
+                primary: LIQUID_GALLON_TO_L,
+                secondary: LIQUID_QUART_TO_L,
+            });
+            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
         });
     }
 
@@ -1121,7 +1245,12 @@ function convertLiquidText(text) {
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.CUPS_FLOZ);
             const liters =
                 parsed.primary.value * LIQUID_CUP_TO_L + parsed.secondary.value * LIQUID_FLOZ_TO_L;
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+            if (liters === 0) return match;
+            const resolutionLiters = inferResolutionFromParsedMeasurement(parsed, {
+                primary: LIQUID_CUP_TO_L,
+                secondary: LIQUID_FLOZ_TO_L,
+            });
+            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
         });
     }
 
@@ -1145,7 +1274,12 @@ function convertLiquidText(text) {
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.TBSP_TSP);
             const liters =
                 parsed.primary.value * LIQUID_TBSP_TO_L + parsed.secondary.value * LIQUID_TSP_TO_L;
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+            if (liters === 0) return match;
+            const resolutionLiters = inferResolutionFromParsedMeasurement(parsed, {
+                primary: LIQUID_TBSP_TO_L,
+                secondary: LIQUID_TSP_TO_L,
+            });
+            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
         });
     }
 
@@ -1161,7 +1295,11 @@ function convertLiquidText(text) {
             if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS);
             const liters = parsed.primary.value * LIQUID_GALLON_TO_L;
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+            if (liters === 0) return match;
+            const resolutionLiters = inferResolutionFromParsedMeasurement(parsed, {
+                primary: LIQUID_GALLON_TO_L,
+            });
+            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
         });
     }
 
@@ -1177,7 +1315,11 @@ function convertLiquidText(text) {
             if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.QUARTS);
             const liters = parsed.primary.value * LIQUID_QUART_TO_L;
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+            if (liters === 0) return match;
+            const resolutionLiters = inferResolutionFromParsedMeasurement(parsed, {
+                primary: LIQUID_QUART_TO_L,
+            });
+            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
         });
     }
 
@@ -1193,7 +1335,11 @@ function convertLiquidText(text) {
             if (s && hasCurrencyPrefix(s, offset)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.PINTS);
             const liters = parsed.primary.value * LIQUID_PINT_TO_L;
-            return liters === 0 ? match : `${match} (${formatLiquidMeasurement(liters)})`;
+            if (liters === 0) return match;
+            const resolutionLiters = inferResolutionFromParsedMeasurement(parsed, {
+                primary: LIQUID_PINT_TO_L,
+            });
+            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
         });
     }
 
@@ -1201,37 +1347,41 @@ function convertLiquidText(text) {
 }
 
 function formatAreaMeasurement(squareMeters, options = {}) {
-    const { km2InputDecimalDigits } = options;
+    const { resolutionSquareMeters } = options;
+    if (squareMeters === 0) return '0 m²';
 
-    function formatNumberFixed(num, decimals) {
-        const s = num.toFixed(decimals);
-        const [intPart, fracRaw] = s.split('.');
-        const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        const frac = (fracRaw || '').replace(/0+$/, '');
-        return frac ? `${intWithCommas}.${frac}` : intWithCommas;
-    }
-
-    function formatNumber2(num) {
-        return formatNumberFixed(Math.round(num * 100) / 100, 2);
-    }
-
-    // Unit selection:
-    // - m² for < 1 ha (10,000 m²)
-    // - ha for [1, 100) ha (10,000–1,000,000 m²)
-    // - km² for >= 100 ha (>= 1,000,000 m²)
-    if (squareMeters >= 1_000_000) {
-        const km2 = squareMeters / 1_000_000;
-        // Output-based precision caps for km²: >=1000 -> 0; 10–1000 -> 1; <10 -> 2
-        const cap = km2 >= 1000 ? 0 : km2 >= 10 ? 1 : 2;
-        // Use cap directly; input decimals can be considered in future but never exceed cap
-        const decimals = cap;
-        return `${formatNumberFixed(km2, decimals)} km²`;
-    }
-    if (squareMeters >= 10_000) {
-        const hectares = squareMeters / 10_000;
-        return `${formatNumber2(hectares)} ha`;
-    }
-    return `${formatNumber2(squareMeters)} m²`;
+    return formatMeasurement(squareMeters, {
+        resolutionBase: resolutionSquareMeters,
+        units: [
+            {
+                threshold: 1_000_000,
+                scale: 1 / 1_000_000,
+                label: 'km²',
+                minDecimals: 0,
+                maxDecimals: 3,
+                magnitudeCaps: [
+                    { threshold: 1000, decimals: 0 },
+                    { threshold: 10, decimals: 1 },
+                    { threshold: 0, decimals: 2 },
+                ],
+                allowResolution: false,
+            },
+            {
+                threshold: 10_000,
+                scale: 1 / 10_000,
+                label: 'ha',
+                minDecimals: 2,
+                maxDecimals: 4,
+            },
+            {
+                threshold: 0,
+                scale: 1,
+                label: 'm²',
+                minDecimals: 2,
+                maxDecimals: 3,
+            },
+        ],
+    });
 }
 
 function convertAreaText(text) {
@@ -1264,31 +1414,26 @@ function convertAreaText(text) {
             {
                 units: String.raw`(?:sq\.?\s*ft\.?|sq\.?\s*feet|sq\.?\s*foot|square\s+feet|square\s+foot|sqft|ft\s*(?:\^\s*2|²|2))`,
                 factor: AREA_SQFT_TO_SQM,
-                type: 'sqft',
             },
             {
                 units: String.raw`(?:sq\.?\s*in\.?|sq\.?\s*inch(?:es)?|square\s+inch(?:es)?|in\s*(?:\^\s*2|²|2))`,
                 factor: AREA_SQIN_TO_SQM,
-                type: 'sqin',
             },
             {
                 units: String.raw`(?:sq\.?\s*yd\.?|sq\.?\s*yard(?:s)?|square\s+yard(?:s)?|yd\s*(?:\^\s*2|²|2))`,
                 factor: AREA_SQYD_TO_SQM,
-                type: 'sqyd',
             },
             {
                 units: String.raw`(?:sq\.?\s*mi\.?|sq\.?\s*mile(?:s)?|square\s+mile(?:s)?|mi\s*(?:\^\s*2|²|2))`,
                 factor: AREA_SQMI_TO_SQM,
-                type: 'sqmi',
             },
             {
                 units: String.raw`(?:acre(?:s)?)`,
                 factor: AREA_ACRE_TO_SQM,
-                type: 'acre',
             },
         ];
 
-        for (const { units, factor, type } of groups) {
+        for (const { units, factor } of groups) {
             const areaRegex = new RegExp(String.raw`\b(${VALUE_PART})\s*${units}(?!\s*\()`, 'giu');
             converted = converted.replace(areaRegex, function () {
                 const args = Array.from(arguments);
@@ -1301,10 +1446,8 @@ function convertAreaText(text) {
                 const n = convertToDecimal(raw);
                 if (Number.isNaN(n)) return match;
                 const sqm = n * factor;
-                // Pass input decimal digits; formatter applies output-based caps.
-                const dm = raw.match(/\.(\d+)/);
-                const inputDecimalDigits = dm ? dm[1].length : 0;
-                return `${match} (${formatAreaMeasurement(sqm, { km2InputDecimalDigits: inputDecimalDigits })})`;
+                const resolutionSquareMeters = inferResolutionFromValue(raw, factor);
+                return `${match} (${formatAreaMeasurement(sqm, { resolutionSquareMeters })})`;
             });
         }
     }
@@ -1312,9 +1455,20 @@ function convertAreaText(text) {
     return converted;
 }
 
-function formatTemperatureCelsius(celsius) {
-    const abs = Math.abs(celsius);
-    const decimals = abs >= 100 ? 0 : abs >= 5 ? 1 : 2;
+function formatTemperatureCelsius(celsius, options = {}) {
+    const { resolutionCelsius } = options;
+    const decimals = computeDecimalPlaces({
+        valueInUnit: celsius,
+        resolutionBase: resolutionCelsius,
+        unitScale: 1,
+        minDecimals: 2,
+        maxDecimals: 4,
+        magnitudeCaps: [
+            { threshold: 100, decimals: 0 },
+            { threshold: 5, decimals: 1 },
+            { threshold: 0, decimals: 2 },
+        ],
+    });
     return celsius.toFixed(decimals);
 }
 
@@ -1324,7 +1478,8 @@ function convertTemperatureText(text) {
         const f = parseFloat(fStr);
         if (Number.isNaN(f)) return match;
         const c = ((f - 32) * 5) / 9;
-        return `${match} (${formatTemperatureCelsius(c)}°C)`;
+        const resolutionCelsius = inferResolutionFromValue(fStr, 5 / 9);
+        return `${match} (${formatTemperatureCelsius(c, { resolutionCelsius })}°C)`;
     });
 
     return out;

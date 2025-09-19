@@ -60,19 +60,19 @@ describe('Area Conversion (Square Inches)', () => {
         const cases = [
             {
                 input: 'Tile area is 144 sq in',
-                expected: 'Tile area is 144 sq in (0.09 m²)',
+                expected: 'Tile area is 144 sq in (0.093 m²)',
             },
             {
                 input: 'Panel is 200 square inches',
-                expected: 'Panel is 200 square inches (0.13 m²)',
+                expected: 'Panel is 200 square inches (0.129 m²)',
             },
             {
                 input: 'Label size 12 in²',
-                expected: 'Label size 12 in² (0.01 m²)',
+                expected: 'Label size 12 in² (0.008 m²)',
             },
             {
                 input: 'Sample patch 36 sq. in',
-                expected: 'Sample patch 36 sq. in (0.02 m²)',
+                expected: 'Sample patch 36 sq. in (0.023 m²)',
             },
         ];
 

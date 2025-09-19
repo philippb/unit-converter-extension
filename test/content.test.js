@@ -111,47 +111,47 @@ describe('Measurement Parsing', () => {
 
         // Test primary unit only
         expect(parseMeasurementMatch('5 feet', units)).toEqual({
-            primary: { value: 5, unit: 'feet' },
-            secondary: { value: 0, unit: null },
+            primary: { value: 5, unit: 'feet', raw: '5' },
+            secondary: { value: 0, unit: null, raw: null },
         });
 
         expect(parseMeasurementMatch('5.5 feet', units)).toEqual({
-            primary: { value: 5.5, unit: 'feet' },
-            secondary: { value: 0, unit: null },
+            primary: { value: 5.5, unit: 'feet', raw: '5.5' },
+            secondary: { value: 0, unit: null, raw: null },
         });
 
         // Test primary and secondary units
         expect(parseMeasurementMatch('5 feet 6 inches', units)).toEqual({
-            primary: { value: 5, unit: 'feet' },
-            secondary: { value: 6, unit: 'inches' },
+            primary: { value: 5, unit: 'feet', raw: '5' },
+            secondary: { value: 6, unit: 'inches', raw: '6' },
         });
 
         // Test secondary unit only
         expect(parseMeasurementMatch('6 inches', units)).toEqual({
-            primary: { value: 0, unit: null },
-            secondary: { value: 6, unit: 'inches' },
+            primary: { value: 0, unit: null, raw: null },
+            secondary: { value: 6, unit: 'inches', raw: '6' },
         });
 
         // Test with fractions
         expect(parseMeasurementMatch('5 1/2 feet 6 inches', units)).toEqual({
-            primary: { value: 5.5, unit: 'feet' },
-            secondary: { value: 6, unit: 'inches' },
+            primary: { value: 5.5, unit: 'feet', raw: '5 1/2' },
+            secondary: { value: 6, unit: 'inches', raw: '6' },
         });
 
         // Test with unicode fractions
         expect(parseMeasurementMatch('5½ feet 6 ¼ inches', units)).toEqual({
-            primary: { value: 5.5, unit: 'feet' },
-            secondary: { value: 6.25, unit: 'inches' },
+            primary: { value: 5.5, unit: 'feet', raw: '5½' },
+            secondary: { value: 6.25, unit: 'inches', raw: '6 ¼' },
         });
 
         expect(parseMeasurementMatch('6 ft 2 in', units)).toEqual({
-            primary: { value: 6, unit: 'ft' },
-            secondary: { value: 2, unit: 'in' },
+            primary: { value: 6, unit: 'ft', raw: '6' },
+            secondary: { value: 2, unit: 'in', raw: '2' },
         });
 
         expect(parseMeasurementMatch('6⅝ ft', units)).toEqual({
-            primary: { value: 6.625, unit: 'ft' },
-            secondary: { value: 0, unit: null },
+            primary: { value: 6.625, unit: 'ft', raw: '6⅝' },
+            secondary: { value: 0, unit: null, raw: null },
         });
     });
 });
@@ -943,7 +943,7 @@ describe('Liquid Conversion Tests', () => {
             const decimalCases = [
                 { input: '2.0 cups', expected: '2.0 cups (0.47 L)' },
                 { input: '1.0 gallon', expected: '1.0 gallon (3.79 L)' },
-                { input: '3.00 quarts', expected: '3.00 quarts (2.84 L)' },
+                { input: '3.00 quarts', expected: '3.00 quarts (2.839 L)' },
                 { input: '2 1/2 cups', expected: '2 1/2 cups (0.59 L)' },
                 { input: '1 1/4 gallon', expected: '1 1/4 gallon (4.73 L)' },
                 { input: '3 3/4 quarts', expected: '3 3/4 quarts (3.55 L)' },
