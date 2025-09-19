@@ -898,8 +898,10 @@ function isEditableContext(node) {
 
 // Skip non-textual or executable containers to avoid breaking pages
 const SKIP_TAGS = new Set([
+    'CODE',
     'SCRIPT',
     'STYLE',
+    'PRE',
     'NOSCRIPT',
     'IFRAME',
     'OBJECT',
