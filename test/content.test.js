@@ -204,6 +204,12 @@ describe('Unit Conversion Tests', () => {
                 expect(document.body.textContent).toBe(expected);
             });
         });
+
+        test('converts curly double-quote inch symbol', () => {
+            document.body.textContent = 'Board is 3” wide';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('Board is 3” (7.62 cm) wide');
+        });
     });
 
     describe('Feet Conversions', () => {
@@ -231,6 +237,12 @@ describe('Unit Conversion Tests', () => {
                 processNode(document.body);
                 expect(document.body.textContent).toBe(expected);
             });
+        });
+
+        test('converts curly apostrophe foot symbol', () => {
+            document.body.textContent = '6’ stretch hexayurt';
+            processNode(document.body);
+            expect(document.body.textContent).toBe('6’ (1.83 m) stretch hexayurt');
         });
     });
 

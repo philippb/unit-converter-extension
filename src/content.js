@@ -4,8 +4,8 @@
 const UNIT_SPECS = {
     LENGTH: {
         FEET_INCHES: {
-            PRIMARY: ["'", '′', 'feet', 'foot', 'ft'],
-            SECONDARY: ['"', '″', 'inches', 'inch', 'in'],
+            PRIMARY: ["'", '′', '’', 'feet', 'foot', 'ft'],
+            SECONDARY: ['"', '″', '”', 'inches', 'inch', 'in'],
         },
         MILES: {
             PRIMARY: ['miles', 'mile', 'mi'],
@@ -730,10 +730,10 @@ function convertLengthText(text) {
     let converted = text;
     // Handle standalone inch/foot symbols like 12" or 5'
     const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
-    const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″)(?!\s*\()`, 'giu');
-    const feetSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:'|′)(?!\s*\()`, 'giu');
+    const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″|”)(?!\s*\()`, 'giu');
+    const feetSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:'|′|’)(?!\s*\()`, 'giu');
 
-    if (converted.includes('"') || converted.includes('″')) {
+    if (converted.includes('"') || converted.includes('″') || converted.includes('”')) {
         converted = converted.replace(inchesSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
@@ -750,7 +750,7 @@ function convertLengthText(text) {
         });
     }
 
-    if (converted.includes("'") || converted.includes('′')) {
+    if (converted.includes("'") || converted.includes('′') || converted.includes('’')) {
         converted = converted.replace(feetSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
@@ -869,7 +869,7 @@ function hasRelevantUnits(text) {
     // Handle inch symbol forms like 12" or ⅛"
     const unicode = UNICODE_FRACTIONS;
     const numToken = String.raw`(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|[${unicode}]|(?:\d{1,3}(?:,\d{3})+|\d+)`;
-    const RE_INCH_SYMBOL_HINT = new RegExp(String.raw`(?:${numToken})\s*(?:"|″)`, 'u');
+    const RE_INCH_SYMBOL_HINT = new RegExp(String.raw`(?:${numToken})\s*(?:"|″|”)`, 'u');
     if (RE_INCH_SYMBOL_HINT.test(text)) return true;
 
     // Also allow clear temperature/time matches
@@ -1868,7 +1868,7 @@ function convertText(text) {
     // Route to appropriate conversion function based on unit type
     // Length detection: also handle quote-based symbols (e.g., 12" or 5')
     const quoteLengthHint = new RegExp(
-        String.raw`(?:\d|[${UNICODE_FRACTIONS}])\s*(?:"|″|'|′)`,
+        String.raw`(?:\d|[${UNICODE_FRACTIONS}])\s*(?:"|″|”|'|′|’)`,
         'i'
     ).test(converted);
     // Area hint: avoid relying on word boundaries for tokens like 'ft²'
