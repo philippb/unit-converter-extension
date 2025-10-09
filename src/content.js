@@ -748,9 +748,12 @@ function convertLengthText(text) {
         'giu'
     );
 
-    const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″|")(?!\s*\()`, 'giu');
+    const inchesSymbolRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*(?:''|"|″|")(?!\s*\()`,
+        'giu'
+    );
     const feetSymbolRegex = new RegExp(
-        String.raw`(${VALUE_PART})\s*(?:'|′|\u2019)(?!\s*\()(?!s)`,
+        String.raw`(${VALUE_PART})\s*(?:'|′|\u2019)(?!\s*\()(?!s)(?!')`,
         'giu'
     );
 
@@ -791,7 +794,12 @@ function convertLengthText(text) {
         });
     }
 
-    if (converted.includes('"') || converted.includes('″') || converted.includes('"')) {
+    if (
+        converted.includes('"') ||
+        converted.includes('″') ||
+        converted.includes('"') ||
+        converted.includes("''")
+    ) {
         converted = converted.replace(inchesSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];

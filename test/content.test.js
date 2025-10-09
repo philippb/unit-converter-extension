@@ -266,6 +266,21 @@ describe('Unit Conversion Tests', () => {
                 expect(document.body.textContent).toBe(expected);
             });
         });
+
+        test('converts double apostrophe as inches (issue #15)', () => {
+            const doubleApostropheCases = [
+                { input: "19'' Crossflow Wheels", expected: "19'' (48.26 cm) Crossflow Wheels" },
+                { input: "20'' wheels available", expected: "20'' (50.8 cm) wheels available" },
+                { input: "Tesla 19'' rims", expected: "Tesla 19'' (48.26 cm) rims" },
+                { input: "15'' display", expected: "15'' (38.1 cm) display" },
+            ];
+
+            doubleApostropheCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
     });
 
     describe('Feet Conversions', () => {
