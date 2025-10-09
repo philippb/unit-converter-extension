@@ -4,11 +4,14 @@
 const UNIT_SPECS = {
     LENGTH: {
         FEET_INCHES: {
-            PRIMARY: ["'", '′', '’', 'feet', 'foot', 'ft'],
-            SECONDARY: ['"', '″', '”', 'inches', 'inch', 'in'],
+            PRIMARY: ["'", '′', '\u2019', 'feet', 'foot', 'ft'],
+            SECONDARY: ['"', '″', '\u201D', 'inches', 'inch', 'in'],
         },
         MILES: {
             PRIMARY: ['miles', 'mile', 'mi'],
+        },
+        YARDS: {
+            PRIMARY: ['yards', 'yard', 'yd'],
         },
     },
     AREA: {
@@ -420,9 +423,10 @@ const LIQUID_TBSP_TO_L = 0.0147868;
 const LIQUID_TSP_TO_L = 0.00492892;
 /* @ai:ignore-end */
 
-function convertLengthToMeters(feet = 0, inches = 0, miles = 0) {
+function convertLengthToMeters(feet = 0, inches = 0, miles = 0, yards = 0) {
     return (
         miles * LENGTH_MILE_TO_METERS +
+        yards * LENGTH_YARD_TO_METERS +
         feet * LENGTH_FOOT_TO_METERS +
         inches * LENGTH_INCH_TO_METERS
     );
@@ -452,6 +456,7 @@ function inferResolutionMetersFromNumber(raw, unit) {
         in: LENGTH_INCH_TO_METERS,
         ft: LENGTH_FOOT_TO_METERS,
         mi: LENGTH_MILE_TO_METERS,
+        yd: LENGTH_YARD_TO_METERS,
     };
     return inferResolutionFromValue(raw, scaleMap[unit]);
 }
@@ -880,6 +885,32 @@ function convertLengthText(text) {
             const resolutionMeters = inferResolutionMetersFromNumber(
                 extractFirstValueToken(match),
                 'mi'
+            );
+            return `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
+        });
+    }
+
+    // Convert standalone yards (only if likely present)
+    if (lowerLen.includes(' yd') || lowerLen.includes('yard')) {
+        const yardsRegex = createRegexFromTemplate(UNITS.LENGTH.YARDS.PRIMARY, '');
+
+        converted = converted.replace(yardsRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
+            // Skip if squared marker immediately follows (yd², yd^2)
+            if (s) {
+                const after = s.slice(offset + match.length, offset + match.length + 3);
+                if (/^\s*(?:\^\s*2|²)/.test(after)) return match;
+            }
+            const parsed = parseMeasurementMatch(match, UNITS.LENGTH.YARDS);
+            const meters = convertLengthToMeters(0, 0, 0, parsed.primary.value);
+            if (meters === 0) return match;
+            const resolutionMeters = inferResolutionMetersFromNumber(
+                extractFirstValueToken(match),
+                'yd'
             );
             return `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
         });
@@ -1721,15 +1752,24 @@ function convertText(text) {
     function formatWeightRange(g1, g2) {
         const a = Math.min(g1, g2);
         const b = Math.max(g1, g2);
-        if (b >= 1000) return `${formatNum(a / 1000)}–${formatNum(b / 1000)} kg`;
+        // Use kg only if BOTH values are >= 1000g
+        if (a >= 1000 && b >= 1000) return `${formatNum(a / 1000)}–${formatNum(b / 1000)} kg`;
         return `${formatNum(a)}–${formatNum(b)} g`;
     }
 
     function formatLiquidRange(l1, l2) {
         const a = Math.min(l1, l2);
         const b = Math.max(l1, l2);
-        if (b >= 0.25) return `${formatNum(a)}–${formatNum(b)} L`;
+        // Use L only if the higher value is >= 1L (not 0.25L)
+        if (b >= 1) return `${formatNum(a)}–${formatNum(b)} L`;
         return `${formatNum(a * 1000)}–${formatNum(b * 1000)} ml`;
+    }
+
+    function formatTemperatureRange(c1, c2) {
+        const a = Math.min(c1, c2);
+        const b = Math.max(c1, c2);
+        // Round to nearest integer for temperature ranges
+        return `${Math.round(a)}–${Math.round(b)}`;
     }
 
     function applyReplacements(original, replacements) {
@@ -1746,106 +1786,79 @@ function convertText(text) {
         return out;
     }
 
-    // Merge ranges for length (feet/inches combos and repeated units, plus suffix-style)
-    function mergeLengthRanges(s) {
+    /**
+     * Generic range merger that handles all unit types
+     * @param {string} s - Input string
+     * @param {Object} config - Configuration object with:
+     *   - unitSpec: Unit specification from UNITS (e.g., UNITS.LENGTH.MILES)
+     *   - converter: Function to convert to base unit (e.g., (val) => val * LIQUID_CUP_TO_L)
+     *   - formatter: Function to format range (e.g., formatLengthRange)
+     * @returns {string} String with range placeholders
+     */
+    function mergeUnitRanges(s, config) {
+        const { unitSpec, converter, formatter } = config;
         const replacements = [];
-        const fiRe = createRegexFromTemplate(
-            UNITS.LENGTH.FEET_INCHES.PRIMARY,
-            UNITS.LENGTH.FEET_INCHES.SECONDARY
-        );
-        const re = new RegExp(fiRe.source, 'giu');
+
+        // Create regex from unit spec
+        const primary = unitSpec.PRIMARY || '';
+        const secondary = unitSpec.SECONDARY || '';
+        const regex = createRegexFromTemplate(primary, secondary);
+        const re = new RegExp(regex.source, 'giu');
+
+        // Find all matches
         const matches = [];
         let m;
         while ((m = re.exec(s)) !== null) {
             matches.push({ start: m.index, end: re.lastIndex, text: m[0] });
         }
+
+        // Process matches for ranges
         for (let i = 0; i < matches.length; i++) {
             const curr = matches[i];
-            // 1) repeated-unit range: prev match + sep + curr match
+
+            // 1) Repeated-unit range: "5 mi - 10 mi"
             if (i > 0) {
                 const prev = matches[i - 1];
                 const between = s.slice(prev.end, curr.start);
                 if (RANGE_SEP_RE.test(between)) {
-                    const leftParsed = parseMeasurementMatch(prev.text, UNITS.LENGTH.FEET_INCHES);
-                    const rightParsed = parseMeasurementMatch(curr.text, UNITS.LENGTH.FEET_INCHES);
-                    const m1 = convertLengthToMeters(
-                        leftParsed.primary.value,
-                        leftParsed.secondary.value
-                    );
-                    const m2 = convertLengthToMeters(
-                        rightParsed.primary.value,
-                        rightParsed.secondary.value
-                    );
-                    const formatted = formatLengthRange(m1, m2);
+                    const leftParsed = parseMeasurementMatch(prev.text, unitSpec);
+                    const rightParsed = parseMeasurementMatch(curr.text, unitSpec);
+                    const val1 = converter(leftParsed);
+                    const val2 = converter(rightParsed);
+                    const formatted = formatter(val1, val2);
                     const token = addPlaceholder(`${s.slice(prev.start, curr.end)} (${formatted})`);
                     replacements.push({ start: prev.start, end: curr.end, token });
                     continue;
                 }
             }
-            // 2) suffix-style: number + sep + curr (unit on right only)
-            const leftSlice = s.slice(Math.max(0, curr.start - 50), curr.start);
-            const tail = leftSlice.match(VALUE_TAIL_RE);
-            if (tail) {
-                const tailStart = curr.start - tail[0].length;
-                const rightParsed = parseMeasurementMatch(curr.text, UNITS.LENGTH.FEET_INCHES);
-                // Only handle if right side is a single unit (feet OR inches)
-                const useInches = rightParsed.secondary.unit && !rightParsed.primary.unit;
-                const useFeet = rightParsed.primary.unit && !rightParsed.secondary.unit;
-                if (useInches || useFeet) {
-                    const leftValue = convertToDecimal(String(tail[1]));
-                    if (!Number.isNaN(leftValue)) {
-                        const m1 = useInches
-                            ? convertLengthToMeters(0, leftValue)
-                            : convertLengthToMeters(leftValue, 0);
-                        const m2 = useInches
-                            ? convertLengthToMeters(0, rightParsed.secondary.value)
-                            : convertLengthToMeters(rightParsed.primary.value, 0);
-                        const formatted = formatLengthRange(m1, m2);
-                        const token = addPlaceholder(
-                            `${s.slice(tailStart, curr.end)} (${formatted})`
-                        );
-                        replacements.push({ start: tailStart, end: curr.end, token });
-                    }
-                }
-            }
-        }
 
-        // Handle miles ranges (both repeated-unit and suffix-style)
-        const milesRe = createRegexFromTemplate(UNITS.LENGTH.MILES.PRIMARY, '');
-        const milesRegex = new RegExp(milesRe.source, 'giu');
-        const milesMatches = [];
-        while ((m = milesRegex.exec(s)) !== null) {
-            milesMatches.push({ start: m.index, end: milesRegex.lastIndex, text: m[0] });
-        }
-        for (let i = 0; i < milesMatches.length; i++) {
-            const curr = milesMatches[i];
-            // 1) repeated-unit range: prev match + sep + curr match
-            if (i > 0) {
-                const prev = milesMatches[i - 1];
-                const between = s.slice(prev.end, curr.start);
-                if (RANGE_SEP_RE.test(between)) {
-                    const leftParsed = parseMeasurementMatch(prev.text, UNITS.LENGTH.MILES);
-                    const rightParsed = parseMeasurementMatch(curr.text, UNITS.LENGTH.MILES);
-                    const m1 = convertLengthToMeters(0, 0, leftParsed.primary.value);
-                    const m2 = convertLengthToMeters(0, 0, rightParsed.primary.value);
-                    const formatted = formatLengthRange(m1, m2);
-                    const token = addPlaceholder(`${s.slice(prev.start, curr.end)} (${formatted})`);
-                    replacements.push({ start: prev.start, end: curr.end, token });
-                    continue;
-                }
-            }
-            // 2) suffix-style: number + sep + curr (unit on right only)
+            // 2) Suffix-style range: "5-10 miles" (unit only on right)
             const leftSlice = s.slice(Math.max(0, curr.start - 50), curr.start);
             const tail = leftSlice.match(VALUE_TAIL_RE);
             if (tail) {
                 const tailStart = curr.start - tail[0].length;
-                const rightParsed = parseMeasurementMatch(curr.text, UNITS.LENGTH.MILES);
-                if (rightParsed.primary.unit) {
+                const rightParsed = parseMeasurementMatch(curr.text, unitSpec);
+
+                // For single-unit specs (PRIMARY only) or when right side has only one unit
+                const hasPrimary = rightParsed.primary.unit;
+                const hasSecondary = rightParsed.secondary.unit;
+                const isSingleUnit = (hasPrimary && !hasSecondary) || (!hasPrimary && hasSecondary);
+
+                if (isSingleUnit) {
                     const leftValue = convertToDecimal(String(tail[1]));
                     if (!Number.isNaN(leftValue)) {
-                        const m1 = convertLengthToMeters(0, 0, leftValue);
-                        const m2 = convertLengthToMeters(0, 0, rightParsed.primary.value);
-                        const formatted = formatLengthRange(m1, m2);
+                        // Create left parsed object with same unit as right
+                        const leftParsed = {
+                            primary: hasPrimary
+                                ? { value: leftValue, unit: rightParsed.primary.unit }
+                                : { value: 0, unit: null },
+                            secondary: hasSecondary
+                                ? { value: leftValue, unit: rightParsed.secondary.unit }
+                                : { value: 0, unit: null },
+                        };
+                        const val1 = converter(leftParsed);
+                        const val2 = converter(rightParsed);
+                        const formatted = formatter(val1, val2);
                         const token = addPlaceholder(
                             `${s.slice(tailStart, curr.end)} (${formatted})`
                         );
@@ -1858,91 +1871,87 @@ function convertText(text) {
         return applyReplacements(s, replacements);
     }
 
-    // Merge ranges for weight (lbs/oz)
-    function mergeWeightRanges(s) {
-        const replacements = [];
-        const wRe = createRegexFromTemplate(UNITS.WEIGHT.PRIMARY, UNITS.WEIGHT.SECONDARY);
-        const re = new RegExp(wRe.source, 'giu');
-        const matches = [];
-        let m;
-        while ((m = re.exec(s)) !== null) {
-            matches.push({ start: m.index, end: re.lastIndex, text: m[0] });
-        }
-        for (let i = 0; i < matches.length; i++) {
-            const curr = matches[i];
-            // repeated-unit
-            if (i > 0) {
-                const prev = matches[i - 1];
-                const between = s.slice(prev.end, curr.start);
-                if (RANGE_SEP_RE.test(between)) {
-                    const leftParsed = parseMeasurementMatch(prev.text, UNITS.WEIGHT);
-                    const rightParsed = parseMeasurementMatch(curr.text, UNITS.WEIGHT);
-                    const g1 = convertWeightToGrams(
-                        leftParsed.primary.value,
-                        leftParsed.secondary.value
-                    );
-                    const g2 = convertWeightToGrams(
-                        rightParsed.primary.value,
-                        rightParsed.secondary.value
-                    );
-                    const formatted = formatWeightRange(g1, g2);
-                    const token = addPlaceholder(`${s.slice(prev.start, curr.end)} (${formatted})`);
-                    replacements.push({ start: prev.start, end: curr.end, token });
-                    continue;
-                }
-            }
-            // suffix-style number + sep + curr (assume unit from right primary OR secondary only)
-            const leftSlice = s.slice(Math.max(0, curr.start - 50), curr.start);
-            const tail = leftSlice.match(VALUE_TAIL_RE);
-            if (tail) {
-                const tailStart = curr.start - tail[0].length;
-                const rightParsed = parseMeasurementMatch(curr.text, UNITS.WEIGHT);
-                const usePounds = rightParsed.primary.unit && !rightParsed.secondary.unit;
-                const useOunces = rightParsed.secondary.unit && !rightParsed.primary.unit;
-                if (usePounds || useOunces) {
-                    const leftValue = convertToDecimal(String(tail[1]));
-                    if (!Number.isNaN(leftValue)) {
-                        const g1 = usePounds
-                            ? convertWeightToGrams(leftValue, 0)
-                            : convertWeightToGrams(0, leftValue);
-                        const g2 = usePounds
-                            ? convertWeightToGrams(rightParsed.primary.value, 0)
-                            : convertWeightToGrams(0, rightParsed.secondary.value);
-                        const formatted = formatWeightRange(g1, g2);
-                        const token = addPlaceholder(
-                            `${s.slice(tailStart, curr.end)} (${formatted})`
-                        );
-                        replacements.push({ start: tailStart, end: curr.end, token });
-                    }
-                }
-            }
-        }
-        return applyReplacements(s, replacements);
-    }
+    // Unit-specific converters
+    const lengthConverters = {
+        feetInches: (parsed) => convertLengthToMeters(parsed.primary.value, parsed.secondary.value),
+        miles: (parsed) => convertLengthToMeters(0, 0, parsed.primary.value),
+        yards: (parsed) => convertLengthToMeters(0, 0, 0, parsed.primary.value),
+    };
 
-    // Merge ranges for liquids (simple standalone units like cups)
-    function mergeLiquidRanges(s) {
-        // Specialized handling for cups suffix-style ranges like "0.5 to 1 cup"
-        const VALUE = String.raw`(?:\d+\.\d+|\d+\s+\d+\/\d+|\d+\/\d+|[${UNICODE_FRACTIONS}]|\d+[${UNICODE_FRACTIONS}]?|\d+)`;
-        const cupsSuffix = new RegExp(
-            String.raw`\b(${VALUE})\s*(?:-|–|—|to|through|thru)\s*(${VALUE})\s+(?:${UNITS.LIQUID.CUPS.PRIMARY})\b`,
-            'giu'
-        );
-        return s.replace(cupsSuffix, (m, v1, v2) => {
-            const n1 = convertToDecimal(String(v1));
-            const n2 = convertToDecimal(String(v2));
-            if (Number.isNaN(n1) || Number.isNaN(n2)) return m;
-            const l1 = n1 * LIQUID_CUP_TO_L;
-            const l2 = n2 * LIQUID_CUP_TO_L;
-            const formatted = formatLiquidRange(l1, l2);
-            return addPlaceholder(`${m} (${formatted})`);
-        });
-    }
+    const weightConverter = (parsed) =>
+        convertWeightToGrams(parsed.primary.value, parsed.secondary.value);
+
+    const liquidConverters = {
+        cups: (parsed) => parsed.primary.value * LIQUID_CUP_TO_L,
+        gallons: (parsed) => parsed.primary.value * LIQUID_GALLON_TO_L,
+        quarts: (parsed) => parsed.primary.value * LIQUID_QUART_TO_L,
+        pints: (parsed) => parsed.primary.value * LIQUID_PINT_TO_L,
+        floz: (parsed) => parsed.primary.value * LIQUID_FLOZ_TO_L,
+        tbsp: (parsed) => parsed.primary.value * LIQUID_TBSP_TO_L,
+        tsp: (parsed) => parsed.primary.value * LIQUID_TSP_TO_L,
+    };
 
     // Perform merges prior to standard conversions
-    converted = mergeLengthRanges(converted);
-    converted = mergeLiquidRanges(converted);
-    converted = mergeWeightRanges(converted);
+    // Length ranges
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.LENGTH.FEET_INCHES,
+        converter: lengthConverters.feetInches,
+        formatter: formatLengthRange,
+    });
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.LENGTH.MILES,
+        converter: lengthConverters.miles,
+        formatter: formatLengthRange,
+    });
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.LENGTH.YARDS,
+        converter: lengthConverters.yards,
+        formatter: formatLengthRange,
+    });
+
+    // Weight ranges
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.WEIGHT,
+        converter: weightConverter,
+        formatter: formatWeightRange,
+    });
+
+    // Liquid ranges
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.LIQUID.CUPS,
+        converter: liquidConverters.cups,
+        formatter: formatLiquidRange,
+    });
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.LIQUID.GALLONS,
+        converter: liquidConverters.gallons,
+        formatter: formatLiquidRange,
+    });
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.LIQUID.QUARTS,
+        converter: liquidConverters.quarts,
+        formatter: formatLiquidRange,
+    });
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.LIQUID.PINTS,
+        converter: liquidConverters.pints,
+        formatter: formatLiquidRange,
+    });
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.LIQUID.FLOZ,
+        converter: liquidConverters.floz,
+        formatter: formatLiquidRange,
+    });
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.LIQUID.TBSP,
+        converter: liquidConverters.tbsp,
+        formatter: formatLiquidRange,
+    });
+    converted = mergeUnitRanges(converted, {
+        unitSpec: UNITS.LIQUID.TSP,
+        converter: liquidConverters.tsp,
+        formatter: formatLiquidRange,
+    });
 
     // Helper function to check if text contains any units from a unit group
     const unitGroupRegexCache = new WeakMap();
@@ -1995,14 +2004,30 @@ function convertText(text) {
         converted = convertWeightText(converted);
     }
 
+    // Temperature ranges (Fahrenheit) - handle before individual conversions
+    if (RE_TEMPERATURE_F_TEST.test(converted)) {
+        // Handle temperature ranges like "350-400°F" or "70 to 80 degrees F"
+        const tempRangeRegex = new RegExp(
+            String.raw`(\d+(?:\.\d+)?)\s*(?:-|–|—|to|through|thru)\s*(\d+(?:\.\d+)?)\s*(?:°\s*F|℉|F\b|deg\s*F|degree\s*F|degrees\s*F|degrees?\s*Fahrenheit|Fahrenheit)\b(?!\s*\()`,
+            'gi'
+        );
+        converted = converted.replace(tempRangeRegex, (match, f1Str, f2Str) => {
+            const f1 = parseFloat(f1Str);
+            const f2 = parseFloat(f2Str);
+            if (Number.isNaN(f1) || Number.isNaN(f2)) return match;
+            const c1 = ((f1 - 32) * 5) / 9;
+            const c2 = ((f2 - 32) * 5) / 9;
+            const formatted = formatTemperatureRange(c1, c2);
+            return addPlaceholder(`${match} (${formatted}°C)`);
+        });
+
+        // Then convert individual temperatures
+        converted = convertTemperatureText(converted);
+    }
+
     // Restore placeholders (prevents inner tokens from being re-converted)
     for (const { token, replacement } of placeholders) {
         converted = converted.replaceAll(token, replacement);
-    }
-
-    // Temperature (Fahrenheit)
-    if (RE_TEMPERATURE_F_TEST.test(converted)) {
-        converted = convertTemperatureText(converted);
     }
 
     // Check for time zone expressions
