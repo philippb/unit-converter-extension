@@ -371,6 +371,29 @@ describe('Unit Conversion Tests', () => {
                 expect(document.body.textContent).toBe(expected);
             });
         });
+
+        test('does not convert possessive forms with apostrophe-s', () => {
+            const possessiveCases = [
+                {
+                    input: "1950's Vintage Autoette Electric Golf Cart with cassette player.",
+                    expected: "1950's Vintage Autoette Electric Golf Cart with cassette player.",
+                },
+                {
+                    input: "The 1980's fashion trends are coming back.",
+                    expected: "The 1980's fashion trends are coming back.",
+                },
+                {
+                    input: "My car's 2020's model year is impressive.",
+                    expected: "My car's 2020's model year is impressive.",
+                },
+            ];
+
+            possessiveCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
     });
 
     describe('MutationObserver', () => {
