@@ -910,11 +910,15 @@ function isEditableContext(node) {
 }
 
 // Skip non-textual or executable containers to avoid breaking pages
+// Includes code-related tags to prevent conversion in code snippets (Issue #9)
 const SKIP_TAGS = new Set([
     'CODE',
     'SCRIPT',
     'STYLE',
     'PRE',
+    'KBD', // Keyboard input
+    'SAMP', // Sample output
+    'VAR', // Variables in programming/math contexts
     'NOSCRIPT',
     'IFRAME',
     'OBJECT',
@@ -925,10 +929,114 @@ const SKIP_TAGS = new Set([
     'TITLE',
 ]);
 
+/**
+ * URL-specific rules for excluding code-related content from conversion (Issue #9)
+ * Extensible table mapping domain patterns to additional skip rules
+ * Each entry can specify:
+ *   - tags: Additional HTML tag names to skip
+ *   - classes: CSS class patterns that indicate code content
+ *   - selectors: CSS selectors for more complex matching
+ *
+ * Based on research of top 10 coding websites:
+ * - GitHub, Stack Overflow, MDN, Dev.to, freeCodeCamp, Medium, etc.
+ * - Common patterns: language-* classes, code blocks with pre/code nesting
+ */
+const URL_SPECIFIC_SKIP_RULES = [
+    {
+        // GitHub code blocks and syntax highlighting
+        domains: ['github.com', 'gist.github.com'],
+        classes: ['highlight', 'blob-code', 'markdown-body'],
+        description: 'GitHub uses .highlight for syntax-highlighted code blocks',
+    },
+    {
+        // Stack Overflow code snippets
+        domains: ['stackoverflow.com', 'stackexchange.com', 'serverfault.com', 'superuser.com'],
+        classes: ['s-code-block', 'snippet-code'],
+        description: 'Stack Overflow uses .s-code-block for code examples',
+    },
+    {
+        // MDN Web Docs code examples
+        domains: ['developer.mozilla.org'],
+        classes: ['code-example', 'brush:', 'language-'],
+        description: 'MDN uses .code-example and syntax highlighter classes',
+    },
+    {
+        // Dev.to article code blocks
+        domains: ['dev.to'],
+        classes: ['highlight', 'language-'],
+        description: 'Dev.to uses highlight.js with .language-* classes',
+    },
+    {
+        // Medium and freeCodeCamp code blocks
+        domains: ['medium.com', 'freecodecamp.org'],
+        classes: ['language-', 'markup--code'],
+        description: 'Medium/freeCodeCamp use .language-* and .markup--code',
+    },
+    {
+        // LeetCode problem descriptions and solutions
+        domains: ['leetcode.com'],
+        classes: ['lang-', 'code-block'],
+        description: 'LeetCode uses .lang-* prefix for code blocks',
+    },
+    {
+        // Codecademy lessons
+        domains: ['codecademy.com'],
+        classes: ['cm-', 'CodeMirror'],
+        description: 'Codecademy uses CodeMirror editor with .cm-* classes',
+    },
+    {
+        // Reddit code blocks (markdown renderer)
+        domains: ['reddit.com'],
+        classes: ['md-code-block', 'language-'],
+        description: 'Reddit markdown uses .md-code-block',
+    },
+    {
+        // Generic catch-all for common syntax highlighter patterns
+        domains: ['*'],
+        classes: ['hljs', 'prism', 'language-', 'lang-', 'prettyprint', 'syntax'],
+        description: 'Common syntax highlighter libraries (highlight.js, Prism, etc.)',
+    },
+];
+
+/**
+ * Checks if a node has a class that matches URL-specific code patterns
+ */
+function hasCodeRelatedClass(element) {
+    if (!element || !element.classList) return false;
+
+    const hostname =
+        typeof window !== 'undefined' && window.location ? window.location.hostname : '';
+
+    // Check all applicable rules for the current domain
+    for (const rule of URL_SPECIFIC_SKIP_RULES) {
+        // Check if rule applies to current domain
+        const applies = rule.domains.some((domain) => domain === '*' || hostname.includes(domain));
+
+        if (!applies) continue;
+
+        // Check if element has any of the specified classes
+        for (const classPattern of rule.classes) {
+            for (const className of element.classList) {
+                // Support prefix matching (e.g., 'language-' matches 'language-javascript')
+                if (className.startsWith(classPattern) || className === classPattern) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 function isInSkippableContainer(node) {
     let current = node && node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
     while (current) {
+        // Check for skippable tag names
         if (current.tagName && SKIP_TAGS.has(current.tagName)) return true;
+
+        // Check for code-related CSS classes (URL-specific rules)
+        if (hasCodeRelatedClass(current)) return true;
+
         current = current.parentNode;
     }
     return false;

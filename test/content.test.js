@@ -610,6 +610,121 @@ describe('Editable Context Detection', () => {
             expect(measureSpan.textContent).toBe('12 inch');
         });
     });
+
+    describe('Code Context Tests (Issue #9)', () => {
+        beforeEach(() => {
+            document.body.innerHTML = '';
+        });
+
+        test('does not convert content inside <code> tags', () => {
+            const div = document.createElement('div');
+            div.innerHTML =
+                'Regular text: 6 feet. Code: <code>when we have 6 feet in side code</code>';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const codeElement = div.querySelector('code');
+            // Code content should NOT be converted
+            expect(codeElement.textContent).toBe('when we have 6 feet in side code');
+            // Regular text SHOULD be converted
+            expect(div.textContent).toContain('(1.83 m)');
+        });
+
+        test('does not convert content inside <pre> tags (non-editable)', () => {
+            const div = document.createElement('div');
+            div.innerHTML = 'Text outside: 12 inches. <pre>let test = "12 feet"</pre>';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const preElement = div.querySelector('pre');
+            // Pre content should NOT be converted
+            expect(preElement.textContent).toBe('let test = "12 feet"');
+            // Text outside SHOULD be converted
+            expect(div.textContent).toContain('(30.48 cm)');
+        });
+
+        test('does not convert content with single quotes (apostrophes) for feet', () => {
+            const div = document.createElement('div');
+            div.innerHTML = '<code>height = 6\' 2"</code>';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const codeElement = div.querySelector('code');
+            // Code content with quotes should NOT be converted
+            expect(codeElement.textContent).toBe('height = 6\' 2"');
+        });
+
+        test('does not convert measurements in code blocks with backticks in markdown', () => {
+            // Simulating markdown rendered as HTML
+            const div = document.createElement('div');
+            div.innerHTML =
+                'This is normal text with 5 feet. <code>const width = 12 feet</code> more text.';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const codeElement = div.querySelector('code');
+            expect(codeElement.textContent).toBe('const width = 12 feet');
+            // Normal text should be converted
+            expect(div.textContent).toContain('(1.52 m)');
+        });
+
+        test('handles nested code tags', () => {
+            const div = document.createElement('div');
+            div.innerHTML =
+                '<p>Outer text 10 inches. <span>Inner <code>code 6 feet</code> span</span></p>';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const codeElement = div.querySelector('code');
+            expect(codeElement.textContent).toBe('code 6 feet');
+            // Outer text should be converted
+            expect(div.textContent).toContain('(25.4 cm)');
+        });
+
+        test('does not convert content inside <kbd> tags', () => {
+            const div = document.createElement('div');
+            div.innerHTML = 'Press <kbd>6 ft</kbd> to continue. Regular: 6 ft.';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const kbdElement = div.querySelector('kbd');
+            // KBD content should NOT be converted (keyboard input)
+            expect(kbdElement.textContent).toBe('6 ft');
+            // Regular text SHOULD be converted
+            expect(div.textContent).toContain('(1.83 m)');
+        });
+
+        test('does not convert content inside <samp> tags', () => {
+            const div = document.createElement('div');
+            div.innerHTML = 'Output: <samp>12 inches</samp>. Actual: 12 inches.';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const sampElement = div.querySelector('samp');
+            // SAMP content should NOT be converted (sample output)
+            expect(sampElement.textContent).toBe('12 inches');
+            // Regular text SHOULD be converted
+            expect(div.textContent).toContain('(30.48 cm)');
+        });
+
+        test('does not convert content inside <var> tags', () => {
+            const div = document.createElement('div');
+            div.innerHTML = 'The variable <var>height_ft</var> is 5 feet.';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            // Regular text should be converted
+            expect(div.textContent).toContain('(1.52 m)');
+        });
+    });
 });
 
 describe('Weight Conversion Tests', () => {
