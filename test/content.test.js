@@ -425,6 +425,46 @@ describe('Unit Conversion Tests', () => {
                 expect(document.body.textContent).toBe(expected);
             });
         });
+
+        test('does not convert numbers inside quotes (issue #12)', () => {
+            const quoteCases = [
+                {
+                    input: 'The "top 30" actions to unify',
+                    expected: 'The "top 30" actions to unify',
+                },
+                {
+                    input: '"zip": "94110"',
+                    expected: '"zip": "94110"',
+                },
+                {
+                    input: '"apn": "4210-040"',
+                    expected: '"apn": "4210-040"',
+                },
+                {
+                    input: 'The "section 22" was reviewed',
+                    expected: 'The "section 22" was reviewed',
+                },
+                {
+                    input: "The 'top 30' actions to unify",
+                    expected: "The 'top 30' actions to unify",
+                },
+                // But still convert when quotes are for inch/feet measurements
+                {
+                    input: 'Board is 6" wide',
+                    expected: 'Board is 6" (15.24 cm) wide',
+                },
+                {
+                    input: "It's 5' tall",
+                    expected: "It's 5' (1.52 m) tall",
+                },
+            ];
+
+            quoteCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
     });
 
     describe('MutationObserver', () => {

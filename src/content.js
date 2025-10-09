@@ -193,6 +193,71 @@ function hasCurrencyPrefix(s, startIndex) {
     const ch = s[i];
     return CURRENCY_SYMBOLS.includes(ch);
 }
+
+// Quote characters to detect quoted strings (straight and curly quotes)
+const QUOTE_CHARS = '"\'\u201c\u201d\u2018\u2019';
+/**
+ * Check if a match is inside a quoted string (to avoid converting non-measurement numbers)
+ * Example: "top 30" should not convert 30, but 6" should convert as it's an inch measurement
+ * @param {string} s - The full string
+ * @param {number} startIndex - The start index of the match
+ * @param {string} match - The matched text (e.g., '30"' or "5'")
+ * @returns {boolean} - True if inside quotes (and not a measurement symbol)
+ */
+function isInsideQuotes(s, startIndex, match) {
+    if (!s || typeof s !== 'string') return false;
+
+    // The match typically ends with a quote character (like 30" or 5')
+    // Check if there's an opening quote before this match
+    const lastChar = match[match.length - 1];
+
+    // Only process if the match ends with a quote character
+    if (!QUOTE_CHARS.includes(lastChar)) return false;
+
+    // Look backwards from the start of the match to find an opening quote
+    let searchIdx = startIndex - 1;
+
+    // Skip backwards through the content to find the previous quote
+    while (searchIdx >= 0) {
+        const char = s[searchIdx];
+
+        if (QUOTE_CHARS.includes(char)) {
+            // Found a potential opening quote
+            const openQuote = char;
+            const closeQuote = lastChar;
+
+            // Check if this quote has proper context
+            // The issue says: "the leading quote should have a leading whitespace and also not have a number leading"
+            if (searchIdx > 0) {
+                const charBeforeQuote = s[searchIdx - 1];
+                // If there's a number directly before the quote, it's likely a measurement like 6"
+                // so this is NOT a quoted string
+                if (/\d/.test(charBeforeQuote)) {
+                    return false;
+                }
+                // If there's not whitespace or specific separator chars, not a quoted string
+                if (!/[\s:,{[]/.test(charBeforeQuote)) {
+                    // Continue searching backwards for another quote
+                    searchIdx--;
+                    continue;
+                }
+            }
+
+            // Check if we have a matching quote pair
+            const isMatchingPair =
+                (openQuote === '"' && (closeQuote === '"' || closeQuote === '\u201d')) ||
+                (openQuote === '\u201c' && closeQuote === '\u201d') ||
+                (openQuote === "'" && (closeQuote === "'" || closeQuote === '\u2019')) ||
+                (openQuote === '\u2018' && closeQuote === '\u2019');
+
+            return isMatchingPair;
+        }
+
+        searchIdx--;
+    }
+
+    return false;
+}
 // Precompute unicode fraction map once
 const UNICODE_FRACTIONS_MAP = {
     '½': 0.5,
@@ -767,6 +832,7 @@ function convertLengthText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
 
             const raw1 = String(value1);
             const raw2 = String(value2);
@@ -807,6 +873,7 @@ function convertLengthText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const raw = String(value);
             const inches = convertToDecimal(raw);
             if (Number.isNaN(inches)) return match;
@@ -816,7 +883,7 @@ function convertLengthText(text) {
         });
     }
 
-    if (converted.includes("'") || converted.includes('′') || converted.includes('’')) {
+    if (converted.includes("'") || converted.includes('′') || converted.includes('\u2019')) {
         converted = converted.replace(feetSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
@@ -824,6 +891,7 @@ function convertLengthText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const raw = String(value);
             const feet = convertToDecimal(raw);
             if (Number.isNaN(feet)) return match;
@@ -852,6 +920,7 @@ function convertLengthText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             // Do not treat as linear length if immediately followed by a squared marker (ft², ft^2)
             if (s) {
                 const after = s.slice(offset + match.length, offset + match.length + 3);
@@ -878,6 +947,7 @@ function convertLengthText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             // Skip if squared marker immediately follows (mi², mi^2)
             if (s) {
                 const after = s.slice(offset + match.length, offset + match.length + 3);
@@ -1223,6 +1293,7 @@ function convertWeightText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.WEIGHT);
             const grams = convertWeightToGrams(parsed.primary.value, parsed.secondary.value);
             if (grams === 0) return match;
@@ -1285,6 +1356,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS_QUARTS);
             const liters =
                 parsed.primary.value * LIQUID_GALLON_TO_L +
@@ -1310,6 +1382,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.CUPS_FLOZ);
             const liters =
                 parsed.primary.value * LIQUID_CUP_TO_L + parsed.secondary.value * LIQUID_FLOZ_TO_L;
@@ -1339,6 +1412,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.TBSP_TSP);
             const liters =
                 parsed.primary.value * LIQUID_TBSP_TO_L + parsed.secondary.value * LIQUID_TSP_TO_L;
@@ -1361,6 +1435,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS);
             const liters = parsed.primary.value * LIQUID_GALLON_TO_L;
             if (liters === 0) return match;
@@ -1381,6 +1456,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.QUARTS);
             const liters = parsed.primary.value * LIQUID_QUART_TO_L;
             if (liters === 0) return match;
@@ -1401,6 +1477,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.PINTS);
             const liters = parsed.primary.value * LIQUID_PINT_TO_L;
             if (liters === 0) return match;
@@ -1510,6 +1587,7 @@ function convertAreaText(text) {
                 const offset = args[args.length - 2];
                 const s = args[args.length - 1];
                 if (s && hasCurrencyPrefix(s, offset)) return match;
+                if (s && isInsideQuotes(s, offset, match)) return match;
                 const raw = String(value);
                 const n = convertToDecimal(raw);
                 if (Number.isNaN(n)) return match;
