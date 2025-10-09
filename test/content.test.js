@@ -17,7 +17,7 @@ describe('Basic Regex Tests', () => {
             2.5 lbs (22 mm)  <-- parentheses => not matched; correct
             Test ½ oz me some <-- no match
             Test⅔ oz me some <-- match; but wrong. Needs leading space
-            4 lb 4 ⅔ oz <-- match 
+            4 lb 4 ⅔ oz <-- match
             2 lbs 1⅔ oz <-- match
             Clearance: 6 ft 2 in minimum <-- no space between units
             2   1/2   in of pipe
@@ -33,6 +33,19 @@ describe('Basic Regex Tests', () => {
             '6 ft 2 in',
             '2   1/2   in',
         ]);
+    });
+
+    test('test regex with hyphenated mixed numbers', () => {
+        const testString = `
+            12-1/2 inches
+            5-3/4 in
+            33-1/2 inches
+        `;
+
+        const match = testString.match(createRegexFromTemplate('inches|inch|in'));
+        expect(match).toContain('12-1/2 inches');
+        expect(match).toContain('5-3/4 in');
+        expect(match).toContain('33-1/2 inches');
     });
 });
 
@@ -99,6 +112,14 @@ describe('convertToDecimal', () => {
         expect(convertToDecimal('3   ¾     ')).toBeCloseTo(3.75);
         expect(convertToDecimal('¼    ')).toBeCloseTo(0.25);
         expect(convertToDecimal('1/8    ')).toBeCloseTo(0.125);
+    });
+
+    test('converts hyphenated mixed numbers to decimal', () => {
+        expect(convertToDecimal('12-1/2')).toBeCloseTo(12.5);
+        expect(convertToDecimal('33-1/2')).toBeCloseTo(33.5);
+        expect(convertToDecimal('5-3/4')).toBeCloseTo(5.75);
+        expect(convertToDecimal('2-1/4')).toBeCloseTo(2.25);
+        expect(convertToDecimal('1-1/8')).toBeCloseTo(1.125);
     });
 });
 
@@ -199,6 +220,25 @@ describe('Unit Conversion Tests', () => {
             ];
 
             mixedNumbers.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('converts hyphenated mixed numbers (e.g., 12-1/2")', () => {
+            const hyphenatedMixed = [
+                { input: '12-1/2"', expected: '12-1/2" (31.75 cm)' },
+                {
+                    input: '12-1/2" Thickness Planer',
+                    expected: '12-1/2" (31.75 cm) Thickness Planer',
+                },
+                { input: '33-1/2"', expected: '33-1/2" (85.09 cm)' },
+                { input: '5-3/4 inches', expected: '5-3/4 inches (14.6 cm)' },
+                { input: '2-1/4"', expected: '2-1/4" (5.71 cm)' },
+            ];
+
+            hyphenatedMixed.forEach(({ input, expected }) => {
                 document.body.textContent = input;
                 processNode(document.body);
                 expect(document.body.textContent).toBe(expected);
