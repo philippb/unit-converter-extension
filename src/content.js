@@ -1809,6 +1809,52 @@ function convertText(text) {
                 }
             }
         }
+
+        // Handle miles ranges (both repeated-unit and suffix-style)
+        const milesRe = createRegexFromTemplate(UNITS.LENGTH.MILES.PRIMARY, '');
+        const milesRegex = new RegExp(milesRe.source, 'giu');
+        const milesMatches = [];
+        while ((m = milesRegex.exec(s)) !== null) {
+            milesMatches.push({ start: m.index, end: milesRegex.lastIndex, text: m[0] });
+        }
+        for (let i = 0; i < milesMatches.length; i++) {
+            const curr = milesMatches[i];
+            // 1) repeated-unit range: prev match + sep + curr match
+            if (i > 0) {
+                const prev = milesMatches[i - 1];
+                const between = s.slice(prev.end, curr.start);
+                if (RANGE_SEP_RE.test(between)) {
+                    const leftParsed = parseMeasurementMatch(prev.text, UNITS.LENGTH.MILES);
+                    const rightParsed = parseMeasurementMatch(curr.text, UNITS.LENGTH.MILES);
+                    const m1 = convertLengthToMeters(0, 0, leftParsed.primary.value);
+                    const m2 = convertLengthToMeters(0, 0, rightParsed.primary.value);
+                    const formatted = formatLengthRange(m1, m2);
+                    const token = addPlaceholder(`${s.slice(prev.start, curr.end)} (${formatted})`);
+                    replacements.push({ start: prev.start, end: curr.end, token });
+                    continue;
+                }
+            }
+            // 2) suffix-style: number + sep + curr (unit on right only)
+            const leftSlice = s.slice(Math.max(0, curr.start - 50), curr.start);
+            const tail = leftSlice.match(VALUE_TAIL_RE);
+            if (tail) {
+                const tailStart = curr.start - tail[0].length;
+                const rightParsed = parseMeasurementMatch(curr.text, UNITS.LENGTH.MILES);
+                if (rightParsed.primary.unit) {
+                    const leftValue = convertToDecimal(String(tail[1]));
+                    if (!Number.isNaN(leftValue)) {
+                        const m1 = convertLengthToMeters(0, 0, leftValue);
+                        const m2 = convertLengthToMeters(0, 0, rightParsed.primary.value);
+                        const formatted = formatLengthRange(m1, m2);
+                        const token = addPlaceholder(
+                            `${s.slice(tailStart, curr.end)} (${formatted})`
+                        );
+                        replacements.push({ start: tailStart, end: curr.end, token });
+                    }
+                }
+            }
+        }
+
         return applyReplacements(s, replacements);
     }
 

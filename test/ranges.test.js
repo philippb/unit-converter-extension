@@ -5,6 +5,12 @@ describe('Range Conversion - Current Behavior', () => {
     // They will likely FAIL until range support is implemented.
 
     describe('Length Ranges', () => {
+        test('0.1-10 miles (issue #18)', () => {
+            const input = '0.1-10 miles';
+            const expected = '0.1-10 miles (0.16–16.09 km)';
+            expect(convertText(input)).toBe(expected);
+        });
+
         test('5–8 inches (en dash)', () => {
             const input = 'The board is 5–8 inches long';
             const expected = 'The board is 5–8 inches (12.7–20.32 cm) long';
