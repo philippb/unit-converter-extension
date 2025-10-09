@@ -740,13 +740,57 @@ function convertLengthText(text) {
     let converted = text;
     // Handle standalone inch/foot symbols like 12" or 5' including hyphenated mixed fractions like 12-1/2"
     const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
-    const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″|”)(?!\s*\()`, 'giu');
-    const feetSymbolRegex = new RegExp(
-        String.raw`(${VALUE_PART})\s*(?:'|′|’)(?!\s*\()(?!s)`,
+
+    // Handle dimension patterns like 6x9" or 6×9" (AxB with shared inch symbol)
+    const dimensionRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*[x×]\s*(${VALUE_PART})\s*(?:"|″|")(?!\s*\()`,
         'giu'
     );
 
-    if (converted.includes('"') || converted.includes('″') || converted.includes('”')) {
+    const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″|")(?!\s*\()`, 'giu');
+    const feetSymbolRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*(?:'|′|\u2019)(?!\s*\()(?!s)`,
+        'giu'
+    );
+
+    // Process dimensions first (before standalone inches) to avoid partial matches
+    if (converted.includes('"') || converted.includes('″') || converted.includes('"')) {
+        converted = converted.replace(dimensionRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const value1 = args[1];
+            const value2 = args[2];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
+
+            const raw1 = String(value1);
+            const raw2 = String(value2);
+            const inches1 = convertToDecimal(raw1);
+            const inches2 = convertToDecimal(raw2);
+
+            if (Number.isNaN(inches1) || Number.isNaN(inches2)) return match;
+
+            const meters1 = convertLengthToMeters(0, inches1, 0);
+            const meters2 = convertLengthToMeters(0, inches2, 0);
+            const resolutionMeters1 = inferResolutionMetersFromNumber(raw1, 'in');
+            const resolutionMeters2 = inferResolutionMetersFromNumber(raw2, 'in');
+
+            const formatted1 = formatLengthMeasurement(meters1, {
+                resolutionMeters: resolutionMeters1,
+            });
+            const formatted2 = formatLengthMeasurement(meters2, {
+                resolutionMeters: resolutionMeters2,
+            });
+
+            // Extract numeric part from first dimension and keep the unit from the second
+            const numericPart1 = formatted1.replace(/\s*(cm|mm|m|km)\s*$/i, '');
+
+            return `${match} (${numericPart1}x${formatted2})`;
+        });
+    }
+
+    if (converted.includes('"') || converted.includes('″') || converted.includes('"')) {
         converted = converted.replace(inchesSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
