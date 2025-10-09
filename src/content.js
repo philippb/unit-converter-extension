@@ -741,7 +741,10 @@ function convertLengthText(text) {
     // Handle standalone inch/foot symbols like 12" or 5' including hyphenated mixed fractions like 12-1/2"
     const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
     const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″|”)(?!\s*\()`, 'giu');
-    const feetSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:'|′|’)(?!\s*\()`, 'giu');
+    const feetSymbolRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*(?:'|′|’)(?!\s*\()(?!s)`,
+        'giu'
+    );
 
     if (converted.includes('"') || converted.includes('″') || converted.includes('”')) {
         converted = converted.replace(inchesSymbolRegex, function () {
