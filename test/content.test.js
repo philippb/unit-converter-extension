@@ -1064,6 +1064,30 @@ describe('Additional Edge Cases', () => {
         });
     });
 
+    test('does not convert port numbers (issue #17)', () => {
+        const cases = [
+            { input: 'localhost:3000', expected: 'localhost:3000' },
+            { input: 'localhost:3000 in your browser', expected: 'localhost:3000 in your browser' },
+            { input: 'http://localhost:3000', expected: 'http://localhost:3000' },
+            { input: 'server:8080', expected: 'server:8080' },
+            { input: 'Running on :5000', expected: 'Running on :5000' },
+            {
+                input: 'Connect to 192.168.1.1:3000 for access',
+                expected: 'Connect to 192.168.1.1:3000 for access',
+            },
+            {
+                input: 'Visit http://localhost:3000 in Chrome',
+                expected: 'Visit http://localhost:3000 in Chrome',
+            },
+        ];
+
+        cases.forEach(({ input, expected }) => {
+            document.body.textContent = input;
+            processNode(document.body);
+            expect(document.body.textContent).toBe(expected);
+        });
+    });
+
     // NOT supported at this point
     test.skip('handles measurements with special characters', () => {
         const cases = [
