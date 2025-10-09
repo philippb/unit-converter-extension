@@ -623,8 +623,12 @@ describe('Weight Conversion Tests', () => {
                 expected: '1/2 lb 3 oz (311.84 g)',
             },
             {
+                input: '2 lbs',
+                expected: '2 lbs (0.91 kg)',
+            },
+            {
                 input: '2 lbs 1⅔ oz',
-                expected: '2 lbs 1⅔ oz (954.43 g)',
+                expected: '2 lbs 1⅔ oz (0.954 kg)',
             },
             {
                 input: '10 ounces',
@@ -785,6 +789,8 @@ describe('Weight Conversion Tests', () => {
                 { grams: 0.5, expected: '0.5 g' },
                 { grams: 5, expected: '5 g' },
                 { grams: 500, expected: '500 g' },
+                { grams: 900, expected: '0.9 kg' }, // Just under 2 lbs threshold
+                { grams: 907.184, expected: '0.91 kg' }, // Exactly 2 lbs - should show in kg
                 { grams: 1000, expected: '1 kg' },
                 { grams: 1500, expected: '1.5 kg' },
                 { grams: 2000, expected: '2 kg' },
@@ -1436,7 +1442,7 @@ describe('Pre-filter Performance Optimization Tests', () => {
 
             // Text should be converted
             expect(div.textContent).toContain('10 feet (3.05 m)');
-            expect(div.textContent).toContain('2 pounds (907.18 g)');
+            expect(div.textContent).toContain('2 pounds (0.91 kg)');
         });
 
         test('skips entire subtrees when parent has no units', () => {
@@ -1484,7 +1490,7 @@ describe('Pre-filter Performance Optimization Tests', () => {
             // All should be processed since parent contains units
             expect(parent.textContent).toContain('1 foot'); // Parent processed
             expect(child1.textContent).toContain('5 feet (1.52 m)'); // Child processed
-            expect(child2.textContent).toContain('2 pounds (907.18 g)'); // Child processed
+            expect(child2.textContent).toContain('2 pounds (0.91 kg)'); // Child processed
         });
 
         test('handles mixed content efficiently', () => {
