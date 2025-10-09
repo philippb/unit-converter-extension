@@ -176,7 +176,7 @@ function buildUnitDataFromSpecs(specs) {
     return { UNITS: units, UNIT_HINT_PATTERN: hintPattern };
 }
 
-const TEMPERATURE_F_REGEX = String.raw`(?<!\()(?<![\d.])\b(\d+(?:\.\d+)?)\s*(?:°\s*F|℉|F\b|deg\s*F|degree\s*F|degrees\s*F|degrees?\s*Fahrenheit|Fahrenheit)\b(?!\s*\()`;
+const TEMPERATURE_F_REGEX = String.raw`(?<!\()(?<![\d.])(?<![–—])(-?\d+(?:\.\d+)?)\s*(?:°\s*F|℉|F\b|deg\s*F|degree\s*F|degrees\s*F|degrees?\s*Fahrenheit|Fahrenheit)\b(?!\s*\()`;
 
 // Precompiled temperature regexes
 const RE_TEMPERATURE_F = new RegExp(TEMPERATURE_F_REGEX, 'gi');
