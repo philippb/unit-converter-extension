@@ -186,6 +186,14 @@ const RE_TEMPERATURE_F = new RegExp(TEMPERATURE_F_REGEX, 'gi');
 const RE_TEMPERATURE_F_TEST = new RegExp(TEMPERATURE_F_REGEX, 'i');
 // @ai:keep
 const UNICODE_FRACTIONS = '½¼¾⅓⅔⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒';
+
+// Quote symbols for feet and inches - centralized definition matching UNIT_SPECS
+// These constants ensure consistency across all regex patterns and checks
+// FEET_SYMBOLS matches UNIT_SPECS.LENGTH.FEET_INCHES.PRIMARY: ["'", '′', '\u2019']
+// INCH_SYMBOLS matches UNIT_SPECS.LENGTH.FEET_INCHES.SECONDARY: ['"', '″', '\u201D']
+const FEET_SYMBOLS = "'′\u2019"; // straight apostrophe, prime, right single quote
+const INCH_SYMBOLS = '"\u2033\u201D'; // straight quote, double prime, right double quote
+
 // Currency symbols used to guard against false positives like "$22 in …"
 const CURRENCY_SYMBOLS = '$€£¥₹₽₩₺₪₫₴₦₱฿₭₲₡₵₸₼₾₿';
 function hasCurrencyPrefix(s, startIndex) {
@@ -748,18 +756,21 @@ function convertLengthText(text) {
 
     // Handle dimension patterns like 6x9" or 6×9" (AxB with shared inch symbol)
     const dimensionRegex = new RegExp(
-        String.raw`(${VALUE_PART})\s*[x×]\s*(${VALUE_PART})\s*(?:"|″|")(?!\s*\()`,
+        String.raw`(${VALUE_PART})\s*[x×]\s*(${VALUE_PART})\s*[${INCH_SYMBOLS}](?!\s*\()`,
         'giu'
     );
 
-    const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″|")(?!\s*\()`, 'giu');
+    const inchesSymbolRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*[${INCH_SYMBOLS}](?!\s*\()`,
+        'giu'
+    );
     const feetSymbolRegex = new RegExp(
-        String.raw`(${VALUE_PART})\s*(?:'|′|\u2019)(?!\s*\()(?!s)`,
+        String.raw`(${VALUE_PART})\s*[${FEET_SYMBOLS}](?!\s*\()(?!s)`,
         'giu'
     );
 
     // Process dimensions first (before standalone inches) to avoid partial matches
-    if (converted.includes('"') || converted.includes('″') || converted.includes('"')) {
+    if (INCH_SYMBOLS.split('').some((sym) => converted.includes(sym))) {
         converted = converted.replace(dimensionRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
@@ -795,7 +806,7 @@ function convertLengthText(text) {
         });
     }
 
-    if (converted.includes('"') || converted.includes('″') || converted.includes('"')) {
+    if (INCH_SYMBOLS.split('').some((sym) => converted.includes(sym))) {
         converted = converted.replace(inchesSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
@@ -812,7 +823,7 @@ function convertLengthText(text) {
         });
     }
 
-    if (converted.includes("'") || converted.includes('′') || converted.includes('’')) {
+    if (FEET_SYMBOLS.split('').some((sym) => converted.includes(sym))) {
         converted = converted.replace(feetSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
@@ -957,7 +968,7 @@ function hasRelevantUnits(text) {
     // Handle inch symbol forms like 12" or ⅛"
     const unicode = UNICODE_FRACTIONS;
     const numToken = String.raw`(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|[${unicode}]|(?:\d{1,3}(?:,\d{3})+|\d+)`;
-    const RE_INCH_SYMBOL_HINT = new RegExp(String.raw`(?:${numToken})\s*(?:"|″|”)`, 'u');
+    const RE_INCH_SYMBOL_HINT = new RegExp(String.raw`(?:${numToken})\s*[${INCH_SYMBOLS}]`, 'u');
     if (RE_INCH_SYMBOL_HINT.test(text)) return true;
 
     // Also allow clear temperature/time matches
@@ -1982,7 +1993,7 @@ function convertText(text) {
     // Route to appropriate conversion function based on unit type
     // Length detection: also handle quote-based symbols (e.g., 12" or 5')
     const quoteLengthHint = new RegExp(
-        String.raw`(?:\d|[${UNICODE_FRACTIONS}])\s*(?:"|″|”|'|′|’)`,
+        String.raw`(?:\d|[${UNICODE_FRACTIONS}])\s*[${INCH_SYMBOLS}${FEET_SYMBOLS}]`,
         'i'
     ).test(converted);
     // Area hint: avoid relying on word boundaries for tokens like 'ft²'
