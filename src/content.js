@@ -236,7 +236,8 @@ const UNICODE_FRACTIONS_DENOM = {
     '⅒': 10,
 };
 // Updated to support comma thousand separators in numbers (e.g., 1,234 or 1,234.56) and hyphenated mixed fractions (e.g., 12-1/2)
-const MEASUREMENT_REGEX_TEMPLATE = String.raw`\b(?:(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}}))))(?=\b|\W|$)(?!\s*\(.*\))`;
+// Negative lookbehind (?<!:) prevents matching port numbers (e.g., :3000) - issue #17
+const MEASUREMENT_REGEX_TEMPLATE = String.raw`(?<!:)\b(?:(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}}))))(?=\b|\W|$)(?!\s*\(.*\))`;
 
 // New regex pattern for time with timezone
 const TIME_REGEX = String.raw`\b(?:(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?\s*(?:am|pm)|(?:2[0-3]|[01]?[0-9])(?::[0-5][0-9])(?::[0-5][0-9])?)(?:\s+)(?:(?:EST|CST|MST|PST|EDT|CDT|MDT|PDT)|(?:GMT|UTC)(?:\s*[+-]\s*\d+(?::[0-5][0-9])?)?)\b(?!\s*\(.*\))`;
@@ -740,13 +741,65 @@ function convertLengthText(text) {
     let converted = text;
     // Handle standalone inch/foot symbols like 12" or 5' including hyphenated mixed fractions like 12-1/2"
     const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
-    const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″|”)(?!\s*\()`, 'giu');
-    const feetSymbolRegex = new RegExp(
-        String.raw`(${VALUE_PART})\s*(?:'|′|’)(?!\s*\()(?!s)`,
+
+    // Handle dimension patterns like 6x9" or 6×9" (AxB with shared inch symbol)
+    const dimensionRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*[x×]\s*(${VALUE_PART})\s*(?:"|″|")(?!\s*\()`,
         'giu'
     );
 
-    if (converted.includes('"') || converted.includes('″') || converted.includes('”')) {
+    const inchesSymbolRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*(?:''|"|″|")(?!\s*\()`,
+        'giu'
+    );
+    const feetSymbolRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*(?:'|′|\u2019)(?!\s*\()(?!s)(?!')`,
+        'giu'
+    );
+
+    // Process dimensions first (before standalone inches) to avoid partial matches
+    if (converted.includes('"') || converted.includes('″') || converted.includes('"')) {
+        converted = converted.replace(dimensionRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const value1 = args[1];
+            const value2 = args[2];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
+
+            const raw1 = String(value1);
+            const raw2 = String(value2);
+            const inches1 = convertToDecimal(raw1);
+            const inches2 = convertToDecimal(raw2);
+
+            if (Number.isNaN(inches1) || Number.isNaN(inches2)) return match;
+
+            const meters1 = convertLengthToMeters(0, inches1, 0);
+            const meters2 = convertLengthToMeters(0, inches2, 0);
+            const resolutionMeters1 = inferResolutionMetersFromNumber(raw1, 'in');
+            const resolutionMeters2 = inferResolutionMetersFromNumber(raw2, 'in');
+
+            const formatted1 = formatLengthMeasurement(meters1, {
+                resolutionMeters: resolutionMeters1,
+            });
+            const formatted2 = formatLengthMeasurement(meters2, {
+                resolutionMeters: resolutionMeters2,
+            });
+
+            // Extract numeric part from first dimension and keep the unit from the second
+            const numericPart1 = formatted1.replace(/\s*(cm|mm|m|km)\s*$/i, '');
+
+            return `${match} (${numericPart1}x${formatted2})`;
+        });
+    }
+
+    if (
+        converted.includes('"') ||
+        converted.includes('″') ||
+        converted.includes('"') ||
+        converted.includes("''")
+    ) {
         converted = converted.replace(inchesSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
@@ -1765,6 +1818,52 @@ function convertText(text) {
                 }
             }
         }
+
+        // Handle miles ranges (both repeated-unit and suffix-style)
+        const milesRe = createRegexFromTemplate(UNITS.LENGTH.MILES.PRIMARY, '');
+        const milesRegex = new RegExp(milesRe.source, 'giu');
+        const milesMatches = [];
+        while ((m = milesRegex.exec(s)) !== null) {
+            milesMatches.push({ start: m.index, end: milesRegex.lastIndex, text: m[0] });
+        }
+        for (let i = 0; i < milesMatches.length; i++) {
+            const curr = milesMatches[i];
+            // 1) repeated-unit range: prev match + sep + curr match
+            if (i > 0) {
+                const prev = milesMatches[i - 1];
+                const between = s.slice(prev.end, curr.start);
+                if (RANGE_SEP_RE.test(between)) {
+                    const leftParsed = parseMeasurementMatch(prev.text, UNITS.LENGTH.MILES);
+                    const rightParsed = parseMeasurementMatch(curr.text, UNITS.LENGTH.MILES);
+                    const m1 = convertLengthToMeters(0, 0, leftParsed.primary.value);
+                    const m2 = convertLengthToMeters(0, 0, rightParsed.primary.value);
+                    const formatted = formatLengthRange(m1, m2);
+                    const token = addPlaceholder(`${s.slice(prev.start, curr.end)} (${formatted})`);
+                    replacements.push({ start: prev.start, end: curr.end, token });
+                    continue;
+                }
+            }
+            // 2) suffix-style: number + sep + curr (unit on right only)
+            const leftSlice = s.slice(Math.max(0, curr.start - 50), curr.start);
+            const tail = leftSlice.match(VALUE_TAIL_RE);
+            if (tail) {
+                const tailStart = curr.start - tail[0].length;
+                const rightParsed = parseMeasurementMatch(curr.text, UNITS.LENGTH.MILES);
+                if (rightParsed.primary.unit) {
+                    const leftValue = convertToDecimal(String(tail[1]));
+                    if (!Number.isNaN(leftValue)) {
+                        const m1 = convertLengthToMeters(0, 0, leftValue);
+                        const m2 = convertLengthToMeters(0, 0, rightParsed.primary.value);
+                        const formatted = formatLengthRange(m1, m2);
+                        const token = addPlaceholder(
+                            `${s.slice(tailStart, curr.end)} (${formatted})`
+                        );
+                        replacements.push({ start: tailStart, end: curr.end, token });
+                    }
+                }
+            }
+        }
+
         return applyReplacements(s, replacements);
     }
 
