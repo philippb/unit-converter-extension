@@ -246,9 +246,25 @@ describe('Unit Conversion Tests', () => {
         });
 
         test('converts curly double-quote inch symbol', () => {
-            document.body.textContent = 'Board is 3” wide';
+            document.body.textContent = 'Board is 3" wide';
             processNode(document.body);
-            expect(document.body.textContent).toBe('Board is 3” (7.62 cm) wide');
+            expect(document.body.textContent).toBe('Board is 3" (7.62 cm) wide');
+        });
+
+        test('converts dimensions (AxB) with shared inch symbol', () => {
+            const dimensionCases = [
+                { input: '6×9"', expected: '6×9" (15.24x22.86 cm)' },
+                { input: '6x9"', expected: '6x9" (15.24x22.86 cm)' },
+                { input: '12×18"', expected: '12×18" (30.48x45.72 cm)' },
+                { input: '8.5x11"', expected: '8.5x11" (21.59x27.94 cm)' },
+                { input: 'Book is 6×9″ size', expected: 'Book is 6×9″ (15.24x22.86 cm) size' },
+            ];
+
+            dimensionCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
         });
     });
 
