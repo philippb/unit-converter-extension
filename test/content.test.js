@@ -7,6 +7,7 @@ const {
     createRegexFromTemplate,
     convertWeightText,
     parseMeasurementMatch,
+    convertTemperatureText,
 } = require('../src/content.js');
 
 describe('Basic Regex Tests', () => {
@@ -1297,6 +1298,70 @@ describe('Time Zone Conversion Tests', () => {
                 document.body.textContent = input;
                 processNode(document.body);
                 expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+});
+
+describe('Temperature Conversion Tests', () => {
+    describe('Fahrenheit to Celsius Conversions', () => {
+        test('converts positive Fahrenheit temperatures', () => {
+            const positiveCases = [
+                { input: '32°F', expected: '32°F (0.00°C)' },
+                { input: '212°F', expected: '212°F (100°C)' },
+                { input: '70°F', expected: '70°F (21.1°C)' },
+                { input: '98.6°F', expected: '98.6°F (37.0°C)' },
+            ];
+
+            positiveCases.forEach(({ input, expected }) => {
+                const result = convertTemperatureText(input);
+                expect(result).toBe(expected);
+            });
+        });
+
+        test('converts negative Fahrenheit temperatures (issue #10)', () => {
+            const negativeCases = [
+                { input: '-40°F', expected: '-40°F (-40.0°C)' },
+                { input: '-10°F', expected: '-10°F (-23.3°C)' },
+                { input: '-4°F', expected: '-4°F (-20.0°C)' },
+                { input: '0°F', expected: '0°F (-17.8°C)' },
+            ];
+
+            negativeCases.forEach(({ input, expected }) => {
+                const result = convertTemperatureText(input);
+                expect(result).toBe(expected);
+            });
+        });
+
+        test('converts temperature ranges with negative values', () => {
+            const rangeCases = [
+                {
+                    input: '-40°F to 140°F',
+                    expected: '-40°F (-40.0°C) to 140°F (60.0°C)',
+                },
+                {
+                    input: 'Temperature from -10°F to 32°F',
+                    expected: 'Temperature from -10°F (-23.3°C) to 32°F (0.00°C)',
+                },
+            ];
+
+            rangeCases.forEach(({ input, expected }) => {
+                const result = convertTemperatureText(input);
+                expect(result).toBe(expected);
+            });
+        });
+
+        test('handles various Fahrenheit notations', () => {
+            const notationCases = [
+                { input: '32 F', expected: '32 F (0.00°C)' },
+                { input: '100 degrees F', expected: '100 degrees F (37.8°C)' },
+                { input: '72 deg F', expected: '72 deg F (22.2°C)' },
+                { input: '50 Fahrenheit', expected: '50 Fahrenheit (10.0°C)' },
+            ];
+
+            notationCases.forEach(({ input, expected }) => {
+                const result = convertTemperatureText(input);
+                expect(result).toBe(expected);
             });
         });
     });
