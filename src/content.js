@@ -1137,7 +1137,7 @@ function formatWeightMeasurement(grams, options = {}) {
         resolutionBase: resolutionGrams,
         units: [
             {
-                threshold: 1000,
+                threshold: 900, // Changed from 1000 to ensure >= 2 lbs shows in kg
                 scale: 1 / 1000,
                 label: 'kg',
                 minDecimals: 2,
