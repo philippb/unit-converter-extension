@@ -193,6 +193,71 @@ function hasCurrencyPrefix(s, startIndex) {
     const ch = s[i];
     return CURRENCY_SYMBOLS.includes(ch);
 }
+
+// Quote characters to detect quoted strings (straight and curly quotes)
+const QUOTE_CHARS = '"\'\u201c\u201d\u2018\u2019';
+/**
+ * Check if a match is inside a quoted string (to avoid converting non-measurement numbers)
+ * Example: "top 30" should not convert 30, but 6" should convert as it's an inch measurement
+ * @param {string} s - The full string
+ * @param {number} startIndex - The start index of the match
+ * @param {string} match - The matched text (e.g., '30"' or "5'")
+ * @returns {boolean} - True if inside quotes (and not a measurement symbol)
+ */
+function isInsideQuotes(s, startIndex, match) {
+    if (!s || typeof s !== 'string') return false;
+
+    // The match typically ends with a quote character (like 30" or 5')
+    // Check if there's an opening quote before this match
+    const lastChar = match[match.length - 1];
+
+    // Only process if the match ends with a quote character
+    if (!QUOTE_CHARS.includes(lastChar)) return false;
+
+    // Look backwards from the start of the match to find an opening quote
+    let searchIdx = startIndex - 1;
+
+    // Skip backwards through the content to find the previous quote
+    while (searchIdx >= 0) {
+        const char = s[searchIdx];
+
+        if (QUOTE_CHARS.includes(char)) {
+            // Found a potential opening quote
+            const openQuote = char;
+            const closeQuote = lastChar;
+
+            // Check if this quote has proper context
+            // The issue says: "the leading quote should have a leading whitespace and also not have a number leading"
+            if (searchIdx > 0) {
+                const charBeforeQuote = s[searchIdx - 1];
+                // If there's a number directly before the quote, it's likely a measurement like 6"
+                // so this is NOT a quoted string
+                if (/\d/.test(charBeforeQuote)) {
+                    return false;
+                }
+                // If there's not whitespace or specific separator chars, not a quoted string
+                if (!/[\s:,{[]/.test(charBeforeQuote)) {
+                    // Continue searching backwards for another quote
+                    searchIdx--;
+                    continue;
+                }
+            }
+
+            // Check if we have a matching quote pair
+            const isMatchingPair =
+                (openQuote === '"' && (closeQuote === '"' || closeQuote === '\u201d')) ||
+                (openQuote === '\u201c' && closeQuote === '\u201d') ||
+                (openQuote === "'" && (closeQuote === "'" || closeQuote === '\u2019')) ||
+                (openQuote === '\u2018' && closeQuote === '\u2019');
+
+            return isMatchingPair;
+        }
+
+        searchIdx--;
+    }
+
+    return false;
+}
 // Precompute unicode fraction map once
 const UNICODE_FRACTIONS_MAP = {
     '½': 0.5,
@@ -236,7 +301,8 @@ const UNICODE_FRACTIONS_DENOM = {
     '⅒': 10,
 };
 // Updated to support comma thousand separators in numbers (e.g., 1,234 or 1,234.56) and hyphenated mixed fractions (e.g., 12-1/2)
-const MEASUREMENT_REGEX_TEMPLATE = String.raw`\b(?:(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}}))))(?=\b|\W|$)(?!\s*\(.*\))`;
+// Negative lookbehind (?<!:) prevents matching port numbers (e.g., :3000) - issue #17
+const MEASUREMENT_REGEX_TEMPLATE = String.raw`(?<!:)\b(?:(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_BIG}})[ \t\f\v]+(?![\r\n])(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))+[ \t\f\v]+(?![\r\n])(?:{{UNIT_SMALL}}))|(?:(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[ \t\f\v][${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}})(?![ \t\f\v]+(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))[ \t\f\v]+(?:{{UNIT_COMBINED}}))))(?=\b|\W|$)(?!\s*\(.*\))`;
 
 // New regex pattern for time with timezone
 const TIME_REGEX = String.raw`\b(?:(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?\s*(?:am|pm)|(?:2[0-3]|[01]?[0-9])(?::[0-5][0-9])(?::[0-5][0-9])?)(?:\s+)(?:(?:EST|CST|MST|PST|EDT|CDT|MDT|PDT)|(?:GMT|UTC)(?:\s*[+-]\s*\d+(?::[0-5][0-9])?)?)\b(?!\s*\(.*\))`;
@@ -740,13 +806,66 @@ function convertLengthText(text) {
     let converted = text;
     // Handle standalone inch/foot symbols like 12" or 5' including hyphenated mixed fractions like 12-1/2"
     const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
-    const inchesSymbolRegex = new RegExp(String.raw`(${VALUE_PART})\s*(?:"|″|”)(?!\s*\()`, 'giu');
-    const feetSymbolRegex = new RegExp(
-        String.raw`(${VALUE_PART})\s*(?:'|′|’)(?!\s*\()(?!s)`,
+
+    // Handle dimension patterns like 6x9" or 6×9" (AxB with shared inch symbol)
+    const dimensionRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*[x×]\s*(${VALUE_PART})\s*(?:"|″|")(?!\s*\()`,
         'giu'
     );
 
-    if (converted.includes('"') || converted.includes('″') || converted.includes('”')) {
+    const inchesSymbolRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*(?:''|"|″|")(?!\s*\()`,
+        'giu'
+    );
+    const feetSymbolRegex = new RegExp(
+        String.raw`(${VALUE_PART})\s*(?:'|′|\u2019)(?!\s*\()(?!s)(?!')`,
+        'giu'
+    );
+
+    // Process dimensions first (before standalone inches) to avoid partial matches
+    if (converted.includes('"') || converted.includes('″') || converted.includes('"')) {
+        converted = converted.replace(dimensionRegex, function () {
+            const args = Array.from(arguments);
+            const match = args[0];
+            const value1 = args[1];
+            const value2 = args[2];
+            const offset = args[args.length - 2];
+            const s = args[args.length - 1];
+            if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
+
+            const raw1 = String(value1);
+            const raw2 = String(value2);
+            const inches1 = convertToDecimal(raw1);
+            const inches2 = convertToDecimal(raw2);
+
+            if (Number.isNaN(inches1) || Number.isNaN(inches2)) return match;
+
+            const meters1 = convertLengthToMeters(0, inches1, 0);
+            const meters2 = convertLengthToMeters(0, inches2, 0);
+            const resolutionMeters1 = inferResolutionMetersFromNumber(raw1, 'in');
+            const resolutionMeters2 = inferResolutionMetersFromNumber(raw2, 'in');
+
+            const formatted1 = formatLengthMeasurement(meters1, {
+                resolutionMeters: resolutionMeters1,
+            });
+            const formatted2 = formatLengthMeasurement(meters2, {
+                resolutionMeters: resolutionMeters2,
+            });
+
+            // Extract numeric part from first dimension and keep the unit from the second
+            const numericPart1 = formatted1.replace(/\s*(cm|mm|m|km)\s*$/i, '');
+
+            return `${match} (${numericPart1}x${formatted2})`;
+        });
+    }
+
+    if (
+        converted.includes('"') ||
+        converted.includes('″') ||
+        converted.includes('"') ||
+        converted.includes("''")
+    ) {
         converted = converted.replace(inchesSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
@@ -754,6 +873,7 @@ function convertLengthText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const raw = String(value);
             const inches = convertToDecimal(raw);
             if (Number.isNaN(inches)) return match;
@@ -763,7 +883,7 @@ function convertLengthText(text) {
         });
     }
 
-    if (converted.includes("'") || converted.includes('′') || converted.includes('’')) {
+    if (converted.includes("'") || converted.includes('′') || converted.includes('\u2019')) {
         converted = converted.replace(feetSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
@@ -771,6 +891,7 @@ function convertLengthText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const raw = String(value);
             const feet = convertToDecimal(raw);
             if (Number.isNaN(feet)) return match;
@@ -799,6 +920,7 @@ function convertLengthText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             // Do not treat as linear length if immediately followed by a squared marker (ft², ft^2)
             if (s) {
                 const after = s.slice(offset + match.length, offset + match.length + 3);
@@ -825,6 +947,7 @@ function convertLengthText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             // Skip if squared marker immediately follows (mi², mi^2)
             if (s) {
                 const after = s.slice(offset + match.length, offset + match.length + 3);
@@ -1170,6 +1293,7 @@ function convertWeightText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.WEIGHT);
             const grams = convertWeightToGrams(parsed.primary.value, parsed.secondary.value);
             if (grams === 0) return match;
@@ -1232,6 +1356,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS_QUARTS);
             const liters =
                 parsed.primary.value * LIQUID_GALLON_TO_L +
@@ -1257,6 +1382,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.CUPS_FLOZ);
             const liters =
                 parsed.primary.value * LIQUID_CUP_TO_L + parsed.secondary.value * LIQUID_FLOZ_TO_L;
@@ -1286,6 +1412,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.TBSP_TSP);
             const liters =
                 parsed.primary.value * LIQUID_TBSP_TO_L + parsed.secondary.value * LIQUID_TSP_TO_L;
@@ -1308,6 +1435,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.GALLONS);
             const liters = parsed.primary.value * LIQUID_GALLON_TO_L;
             if (liters === 0) return match;
@@ -1328,6 +1456,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.QUARTS);
             const liters = parsed.primary.value * LIQUID_QUART_TO_L;
             if (liters === 0) return match;
@@ -1348,6 +1477,7 @@ function convertLiquidText(text) {
             const offset = args[args.length - 2];
             const s = args[args.length - 1];
             if (s && hasCurrencyPrefix(s, offset)) return match;
+            if (s && isInsideQuotes(s, offset, match)) return match;
             const parsed = parseMeasurementMatch(match, UNITS.LIQUID.PINTS);
             const liters = parsed.primary.value * LIQUID_PINT_TO_L;
             if (liters === 0) return match;
@@ -1457,6 +1587,7 @@ function convertAreaText(text) {
                 const offset = args[args.length - 2];
                 const s = args[args.length - 1];
                 if (s && hasCurrencyPrefix(s, offset)) return match;
+                if (s && isInsideQuotes(s, offset, match)) return match;
                 const raw = String(value);
                 const n = convertToDecimal(raw);
                 if (Number.isNaN(n)) return match;
@@ -1765,6 +1896,52 @@ function convertText(text) {
                 }
             }
         }
+
+        // Handle miles ranges (both repeated-unit and suffix-style)
+        const milesRe = createRegexFromTemplate(UNITS.LENGTH.MILES.PRIMARY, '');
+        const milesRegex = new RegExp(milesRe.source, 'giu');
+        const milesMatches = [];
+        while ((m = milesRegex.exec(s)) !== null) {
+            milesMatches.push({ start: m.index, end: milesRegex.lastIndex, text: m[0] });
+        }
+        for (let i = 0; i < milesMatches.length; i++) {
+            const curr = milesMatches[i];
+            // 1) repeated-unit range: prev match + sep + curr match
+            if (i > 0) {
+                const prev = milesMatches[i - 1];
+                const between = s.slice(prev.end, curr.start);
+                if (RANGE_SEP_RE.test(between)) {
+                    const leftParsed = parseMeasurementMatch(prev.text, UNITS.LENGTH.MILES);
+                    const rightParsed = parseMeasurementMatch(curr.text, UNITS.LENGTH.MILES);
+                    const m1 = convertLengthToMeters(0, 0, leftParsed.primary.value);
+                    const m2 = convertLengthToMeters(0, 0, rightParsed.primary.value);
+                    const formatted = formatLengthRange(m1, m2);
+                    const token = addPlaceholder(`${s.slice(prev.start, curr.end)} (${formatted})`);
+                    replacements.push({ start: prev.start, end: curr.end, token });
+                    continue;
+                }
+            }
+            // 2) suffix-style: number + sep + curr (unit on right only)
+            const leftSlice = s.slice(Math.max(0, curr.start - 50), curr.start);
+            const tail = leftSlice.match(VALUE_TAIL_RE);
+            if (tail) {
+                const tailStart = curr.start - tail[0].length;
+                const rightParsed = parseMeasurementMatch(curr.text, UNITS.LENGTH.MILES);
+                if (rightParsed.primary.unit) {
+                    const leftValue = convertToDecimal(String(tail[1]));
+                    if (!Number.isNaN(leftValue)) {
+                        const m1 = convertLengthToMeters(0, 0, leftValue);
+                        const m2 = convertLengthToMeters(0, 0, rightParsed.primary.value);
+                        const formatted = formatLengthRange(m1, m2);
+                        const token = addPlaceholder(
+                            `${s.slice(tailStart, curr.end)} (${formatted})`
+                        );
+                        replacements.push({ start: tailStart, end: curr.end, token });
+                    }
+                }
+            }
+        }
+
         return applyReplacements(s, replacements);
     }
 

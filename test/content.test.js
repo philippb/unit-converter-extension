@@ -246,9 +246,40 @@ describe('Unit Conversion Tests', () => {
         });
 
         test('converts curly double-quote inch symbol', () => {
-            document.body.textContent = 'Board is 3” wide';
+            document.body.textContent = 'Board is 3" wide';
             processNode(document.body);
-            expect(document.body.textContent).toBe('Board is 3” (7.62 cm) wide');
+            expect(document.body.textContent).toBe('Board is 3" (7.62 cm) wide');
+        });
+
+        test('converts dimensions (AxB) with shared inch symbol', () => {
+            const dimensionCases = [
+                { input: '6×9"', expected: '6×9" (15.24x22.86 cm)' },
+                { input: '6x9"', expected: '6x9" (15.24x22.86 cm)' },
+                { input: '12×18"', expected: '12×18" (30.48x45.72 cm)' },
+                { input: '8.5x11"', expected: '8.5x11" (21.59x27.94 cm)' },
+                { input: 'Book is 6×9″ size', expected: 'Book is 6×9″ (15.24x22.86 cm) size' },
+            ];
+
+            dimensionCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('converts double apostrophe as inches (issue #15)', () => {
+            const doubleApostropheCases = [
+                { input: "19'' Crossflow Wheels", expected: "19'' (48.26 cm) Crossflow Wheels" },
+                { input: "20'' wheels available", expected: "20'' (50.8 cm) wheels available" },
+                { input: "Tesla 19'' rims", expected: "Tesla 19'' (48.26 cm) rims" },
+                { input: "15'' display", expected: "15'' (38.1 cm) display" },
+            ];
+
+            doubleApostropheCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
         });
     });
 
@@ -389,6 +420,46 @@ describe('Unit Conversion Tests', () => {
             ];
 
             possessiveCases.forEach(({ input, expected }) => {
+                document.body.textContent = input;
+                processNode(document.body);
+                expect(document.body.textContent).toBe(expected);
+            });
+        });
+
+        test('does not convert numbers inside quotes (issue #12)', () => {
+            const quoteCases = [
+                {
+                    input: 'The "top 30" actions to unify',
+                    expected: 'The "top 30" actions to unify',
+                },
+                {
+                    input: '"zip": "94110"',
+                    expected: '"zip": "94110"',
+                },
+                {
+                    input: '"apn": "4210-040"',
+                    expected: '"apn": "4210-040"',
+                },
+                {
+                    input: 'The "section 22" was reviewed',
+                    expected: 'The "section 22" was reviewed',
+                },
+                {
+                    input: "The 'top 30' actions to unify",
+                    expected: "The 'top 30' actions to unify",
+                },
+                // But still convert when quotes are for inch/feet measurements
+                {
+                    input: 'Board is 6" wide',
+                    expected: 'Board is 6" (15.24 cm) wide',
+                },
+                {
+                    input: "It's 5' tall",
+                    expected: "It's 5' (1.52 m) tall",
+                },
+            ];
+
+            quoteCases.forEach(({ input, expected }) => {
                 document.body.textContent = input;
                 processNode(document.body);
                 expect(document.body.textContent).toBe(expected);
@@ -1045,6 +1116,30 @@ describe('Additional Edge Cases', () => {
             { input: '5 INCHES wide', expected: '5 INCHES (12.7 cm) wide' },
             { input: '2 Feet tall', expected: '2 Feet (60.96 cm) tall' },
             { input: '3 Gallons', expected: '3 Gallons (11.36 L)' },
+        ];
+
+        cases.forEach(({ input, expected }) => {
+            document.body.textContent = input;
+            processNode(document.body);
+            expect(document.body.textContent).toBe(expected);
+        });
+    });
+
+    test('does not convert port numbers (issue #17)', () => {
+        const cases = [
+            { input: 'localhost:3000', expected: 'localhost:3000' },
+            { input: 'localhost:3000 in your browser', expected: 'localhost:3000 in your browser' },
+            { input: 'http://localhost:3000', expected: 'http://localhost:3000' },
+            { input: 'server:8080', expected: 'server:8080' },
+            { input: 'Running on :5000', expected: 'Running on :5000' },
+            {
+                input: 'Connect to 192.168.1.1:3000 for access',
+                expected: 'Connect to 192.168.1.1:3000 for access',
+            },
+            {
+                input: 'Visit http://localhost:3000 in Chrome',
+                expected: 'Visit http://localhost:3000 in Chrome',
+            },
         ];
 
         cases.forEach(({ input, expected }) => {
