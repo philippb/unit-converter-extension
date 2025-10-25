@@ -7,6 +7,7 @@ const {
     createRegexFromTemplate,
     convertWeightText,
     parseMeasurementMatch,
+    convertTemperatureText,
 } = require('../src/content.js');
 
 describe('Basic Regex Tests', () => {
@@ -623,6 +624,121 @@ describe('Editable Context Detection', () => {
             // Test that measurement conversion is skipped in this context
             processNode(pre);
             expect(measureSpan.textContent).toBe('12 inch');
+        });
+    });
+
+    describe('Code Context Tests (Issue #9)', () => {
+        beforeEach(() => {
+            document.body.innerHTML = '';
+        });
+
+        test('does not convert content inside <code> tags', () => {
+            const div = document.createElement('div');
+            div.innerHTML =
+                'Regular text: 6 feet. Code: <code>when we have 6 feet in side code</code>';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const codeElement = div.querySelector('code');
+            // Code content should NOT be converted
+            expect(codeElement.textContent).toBe('when we have 6 feet in side code');
+            // Regular text SHOULD be converted
+            expect(div.textContent).toContain('(1.83 m)');
+        });
+
+        test('does not convert content inside <pre> tags (non-editable)', () => {
+            const div = document.createElement('div');
+            div.innerHTML = 'Text outside: 12 inches. <pre>let test = "12 feet"</pre>';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const preElement = div.querySelector('pre');
+            // Pre content should NOT be converted
+            expect(preElement.textContent).toBe('let test = "12 feet"');
+            // Text outside SHOULD be converted
+            expect(div.textContent).toContain('(30.48 cm)');
+        });
+
+        test('does not convert content with single quotes (apostrophes) for feet', () => {
+            const div = document.createElement('div');
+            div.innerHTML = '<code>height = 6\' 2"</code>';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const codeElement = div.querySelector('code');
+            // Code content with quotes should NOT be converted
+            expect(codeElement.textContent).toBe('height = 6\' 2"');
+        });
+
+        test('does not convert measurements in code blocks with backticks in markdown', () => {
+            // Simulating markdown rendered as HTML
+            const div = document.createElement('div');
+            div.innerHTML =
+                'This is normal text with 5 feet. <code>const width = 12 feet</code> more text.';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const codeElement = div.querySelector('code');
+            expect(codeElement.textContent).toBe('const width = 12 feet');
+            // Normal text should be converted
+            expect(div.textContent).toContain('(1.52 m)');
+        });
+
+        test('handles nested code tags', () => {
+            const div = document.createElement('div');
+            div.innerHTML =
+                '<p>Outer text 10 inches. <span>Inner <code>code 6 feet</code> span</span></p>';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const codeElement = div.querySelector('code');
+            expect(codeElement.textContent).toBe('code 6 feet');
+            // Outer text should be converted
+            expect(div.textContent).toContain('(25.4 cm)');
+        });
+
+        test('does not convert content inside <kbd> tags', () => {
+            const div = document.createElement('div');
+            div.innerHTML = 'Press <kbd>6 ft</kbd> to continue. Regular: 6 ft.';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const kbdElement = div.querySelector('kbd');
+            // KBD content should NOT be converted (keyboard input)
+            expect(kbdElement.textContent).toBe('6 ft');
+            // Regular text SHOULD be converted
+            expect(div.textContent).toContain('(1.83 m)');
+        });
+
+        test('does not convert content inside <samp> tags', () => {
+            const div = document.createElement('div');
+            div.innerHTML = 'Output: <samp>12 inches</samp>. Actual: 12 inches.';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            const sampElement = div.querySelector('samp');
+            // SAMP content should NOT be converted (sample output)
+            expect(sampElement.textContent).toBe('12 inches');
+            // Regular text SHOULD be converted
+            expect(div.textContent).toContain('(30.48 cm)');
+        });
+
+        test('does not convert content inside <var> tags', () => {
+            const div = document.createElement('div');
+            div.innerHTML = 'The variable <var>height_ft</var> is 5 feet.';
+            document.body.appendChild(div);
+
+            processNode(document.body);
+
+            // Regular text should be converted
+            expect(div.textContent).toContain('(1.52 m)');
         });
     });
 });
@@ -1297,6 +1413,70 @@ describe('Time Zone Conversion Tests', () => {
                 document.body.textContent = input;
                 processNode(document.body);
                 expect(document.body.textContent).toBe(expected);
+            });
+        });
+    });
+});
+
+describe('Temperature Conversion Tests', () => {
+    describe('Fahrenheit to Celsius Conversions', () => {
+        test('converts positive Fahrenheit temperatures', () => {
+            const positiveCases = [
+                { input: '32°F', expected: '32°F (0.00°C)' },
+                { input: '212°F', expected: '212°F (100°C)' },
+                { input: '70°F', expected: '70°F (21.1°C)' },
+                { input: '98.6°F', expected: '98.6°F (37.0°C)' },
+            ];
+
+            positiveCases.forEach(({ input, expected }) => {
+                const result = convertTemperatureText(input);
+                expect(result).toBe(expected);
+            });
+        });
+
+        test('converts negative Fahrenheit temperatures (issue #10)', () => {
+            const negativeCases = [
+                { input: '-40°F', expected: '-40°F (-40.0°C)' },
+                { input: '-10°F', expected: '-10°F (-23.3°C)' },
+                { input: '-4°F', expected: '-4°F (-20.0°C)' },
+                { input: '0°F', expected: '0°F (-17.8°C)' },
+            ];
+
+            negativeCases.forEach(({ input, expected }) => {
+                const result = convertTemperatureText(input);
+                expect(result).toBe(expected);
+            });
+        });
+
+        test('converts temperature ranges with negative values', () => {
+            const rangeCases = [
+                {
+                    input: '-40°F to 140°F',
+                    expected: '-40°F (-40.0°C) to 140°F (60.0°C)',
+                },
+                {
+                    input: 'Temperature from -10°F to 32°F',
+                    expected: 'Temperature from -10°F (-23.3°C) to 32°F (0.00°C)',
+                },
+            ];
+
+            rangeCases.forEach(({ input, expected }) => {
+                const result = convertTemperatureText(input);
+                expect(result).toBe(expected);
+            });
+        });
+
+        test('handles various Fahrenheit notations', () => {
+            const notationCases = [
+                { input: '32 F', expected: '32 F (0.00°C)' },
+                { input: '100 degrees F', expected: '100 degrees F (37.8°C)' },
+                { input: '72 deg F', expected: '72 deg F (22.2°C)' },
+                { input: '50 Fahrenheit', expected: '50 Fahrenheit (10.0°C)' },
+            ];
+
+            notationCases.forEach(({ input, expected }) => {
+                const result = convertTemperatureText(input);
+                expect(result).toBe(expected);
             });
         });
     });
