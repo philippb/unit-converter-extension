@@ -21,6 +21,10 @@
 - `npm run build:safari` then `npm run build:safari-app`: build Safari app to `dist/safari/`.
 - `npm run build`: run all build steps.
 
+## Linting Requirements
+
+- Always run `npm run lint` before finishing work and confirm it succeeds (warnings are OK but fix failing rules if they surface). This keeps Husky hooks and CI from rejecting the branch.
+
 ## Coding Style & Naming Conventions
 
 - Tools: ESLint (`eslint:recommended` + `prettier`) and Prettier; warnings for `no-console` and `no-unused-vars`.
