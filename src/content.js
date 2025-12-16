@@ -68,7 +68,12 @@ const { convertWeightToGrams, convertWeightText } = require('./units/weight.js')
 const { convertLiquidText } = require('./units/liquid.js');
 const { convertAreaText } = require('./units/area.js');
 const { convertTemperatureText } = require('./units/temperature.js');
-const { convertTimeZone, convertTimeZoneText, TARGET_TIMEZONE, TARGET_TIMEZONE_OFFSET } = require('./units/timezone.js');
+const {
+    convertTimeZone,
+    convertTimeZoneText,
+    TARGET_TIMEZONE,
+    TARGET_TIMEZONE_OFFSET,
+} = require('./units/timezone.js');
 const { convertText, hasRelevantUnits } = require('./converter.js');
 const exclusionContext = require('./exclusions/context.js');
 const { shouldExcludeMatch } = require('./exclusions/patterns.js');
@@ -149,7 +154,7 @@ function getPluginName() {
             if (manifest && manifest.name) return manifest.name;
         }
     } catch (_) {
-        // ignore
+        void _;
     }
     return 'Imperial to Metric';
 }
@@ -159,7 +164,18 @@ function createInsertedSpan(text, doc) {
     const d = doc || (typeof document !== 'undefined' ? document : null);
     const span = d
         ? d.createElement('span')
-        : { style: {}, set textContent(t) {}, set title(t) {}, set className(c) {} };
+        : {
+              style: {},
+              set textContent(t) {
+                  void t;
+              },
+              set title(t) {
+                  void t;
+              },
+              set className(c) {
+                  void c;
+              },
+          };
     span.className = 'mic-inserted';
     // Inline styles to avoid relying on site CSS
     span.style.textDecorationLine = 'underline';

@@ -27,7 +27,7 @@ const CURRENCY_WORDS = [
 const CURRENCY_WORD_SET = new Set(CURRENCY_WORDS);
 const INCH_ABBREVIATION_RE = /\bin\.?\b/i;
 const FOOT_TERMS_PATTERN = /\b(?:ft|feet|foot)\b/i;
-const STANDALONE_IN_PATTERN = /^\s*\d[\d\s,\.\/]*\s*in\.?\s*$/i;
+const STANDALONE_IN_PATTERN = new RegExp('^\\s*\\d[\\d\\s,./]*\\s*in\\.?\\s*$', 'i');
 const QUOTE_PAIRS = [
     { open: '"', close: '"' },
     { open: "'", close: "'" },
