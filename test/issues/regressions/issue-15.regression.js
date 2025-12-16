@@ -27,6 +27,16 @@ describe('Issue #15: Double apostrophe inch symbol on Tesla page', () => {
         expect(span.textContent).toBe("19'' (48.26 cm) Crossflow Wheels");
     });
 
+    test('handles Tesla-style curly double apostrophes', () => {
+        document.body.innerHTML = '<span>18’’ Aperture Wheels</span>';
+        const span = document.body.querySelector('span');
+
+        processNode(span);
+
+        // Expect conversion to inches (~45.72 cm)
+        expect(span.textContent).toBe("18'' (45.72 cm) Aperture Wheels");
+    });
+
     test('handles double apostrophe in various contexts', () => {
         const testCases = [
             {

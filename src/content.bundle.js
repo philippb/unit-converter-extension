@@ -1032,6 +1032,15 @@
                 require_precision();
             var { formatLengthMeasurement } = require_units2();
             var { shouldExcludeMatch } = require_patterns();
+            var DOUBLE_APOSTROPHE_TOKENS = ["''", '’’'];
+            function containsDoubleApostrophes(text) {
+                return DOUBLE_APOSTROPHE_TOKENS.some(function (token) {
+                    return text.includes(token);
+                });
+            }
+            function normalizeDoubleApostrophes(value) {
+                return String(value).replace(/\u2019\u2019/g, "''");
+            }
             function shouldSkipMatch(match, offset, source) {
                 return shouldExcludeMatch({ text: source, matchStart: offset, match });
             }
@@ -1046,21 +1055,22 @@
             function convertLengthText(text) {
                 let converted = text;
                 const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
+                const INCH_SYMBOL_TOKEN = String.raw`(?:''|’’|[${INCH_SYMBOLS}])`;
                 const dimensionRegex = new RegExp(
-                    String.raw`(${VALUE_PART})\s*(?:''|[${INCH_SYMBOLS}])?\s*[x×]\s*(${VALUE_PART})\s*(?:''|[${INCH_SYMBOLS}])(?!\s*\()`,
+                    String.raw`(${VALUE_PART})\s*${INCH_SYMBOL_TOKEN}?\s*[x×]\s*(${VALUE_PART})\s*${INCH_SYMBOL_TOKEN}(?!\s*\()`,
                     'giu'
                 );
                 const inchesSymbolRegex = new RegExp(
-                    String.raw`(${VALUE_PART})\s*(?:''|[${INCH_SYMBOLS}])(?!\s*\()`,
+                    String.raw`(${VALUE_PART})\s*${INCH_SYMBOL_TOKEN}(?!\s*\()`,
                     'giu'
                 );
                 const feetSymbolRegex = new RegExp(
-                    String.raw`(${VALUE_PART})\s*[${FEET_SYMBOLS}](?!')(?!\s*\()(?!s)`,
+                    String.raw`(${VALUE_PART})\s*[${FEET_SYMBOLS}](?!['\u2019])(?!\s*\()(?!s)`,
                     'giu'
                 );
                 if (
                     INCH_SYMBOLS.split('').some((sym) => converted.includes(sym)) ||
-                    converted.includes("''")
+                    containsDoubleApostrophes(converted)
                 ) {
                     converted = converted.replace(dimensionRegex, function () {
                         const args = Array.from(arguments);
@@ -1086,12 +1096,13 @@
                             resolutionMeters: resolutionMeters2,
                         });
                         const numericPart1 = formatted1.replace(/\s*(cm|mm|m|km)\s*$/i, '');
-                        return `${match} (${numericPart1}x${formatted2})`;
+                        const normalizedMatch = normalizeDoubleApostrophes(match);
+                        return `${normalizedMatch} (${numericPart1}x${formatted2})`;
                     });
                 }
                 if (
                     INCH_SYMBOLS.split('').some((sym) => converted.includes(sym)) ||
-                    converted.includes("''")
+                    containsDoubleApostrophes(converted)
                 ) {
                     converted = converted.replace(inchesSymbolRegex, function () {
                         const args = Array.from(arguments);
@@ -1105,7 +1116,8 @@
                         if (Number.isNaN(inches)) return match;
                         const meters = convertLengthToMeters(0, inches, 0);
                         const resolutionMeters = inferResolutionMetersFromNumber(raw, 'in');
-                        const result = `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
+                        const normalizedMatch = normalizeDoubleApostrophes(match);
+                        const result = `${normalizedMatch} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
                         return result;
                     });
                 }
@@ -1899,7 +1911,9 @@
                     new RegExp(
                         String.raw`(?:\d|[${UNICODE_FRACTIONS}])\s*[${INCH_SYMBOLS}${FEET_SYMBOLS}]`,
                         'i'
-                    ).test(converted) || converted.includes("''");
+                    ).test(converted) ||
+                    converted.includes("''") ||
+                    converted.includes('’’');
                 const areaHint = new RegExp(
                     String.raw`(?:sq\.?\s*ft|sq\.?\s*feet|sq\.?\s*foot|square\s+feet|square\s+foot|sqft|ft\s*(?:\^?2|²)|ft2|sq\.?\s*in|sq\.?\s*inch(?:es)?|square\s+inch(?:es)?|in\s*(?:\^?2|²)|in2|sq\.?\s*yd|sq\.?\s*yard(?:s)?|square\s+yard(?:s)?|yd\s*(?:\^?2|²)|yd2|sq\.?\s*mi|sq\.?\s*mile(?:s)?|square\s+mile(?:s)?|mi\s*(?:\^?2|²)|mi2|acre(?:s)?)`,
                     'i'
