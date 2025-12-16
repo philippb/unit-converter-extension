@@ -20,6 +20,9 @@ exports[`Units registry unit registry structure matches snapshot 1`] = `
         "PRIMARY": "square\\s+yards|square\\s+yard|sq\\.?\\s*yd\\.?|sq\\.?\\s*yard(?:s)?|sq\\.?\\s*yd|yd\\s*(?:\\^?2|²)|yd2",
       },
     },
+    "AWG": {
+      "PRIMARY": "awg",
+    },
     "LENGTH": {
       "FEET_INCHES": {
         "PRIMARY": "'|′|’|feet|foot|ft",
@@ -87,6 +90,6 @@ exports[`Units registry unit registry structure matches snapshot 1`] = `
       "SECONDARY": "ounces|ounce|oz",
     },
   },
-  "UNIT_HINT_PATTERN": ""|'|CDT|CST|EDT|EST|GMT|MDT|MST|PDT|PST|UTC|acre(?:s)?|cup|cups|feet|fl\\.?\\s*oz|fluid\\s+ounce|fluid\\s+ounces|foot|ft|ft2|ft\\s*(?:\\^?2|²)|gal|gallon|gallons|in|in2|in\\.|in\\s*(?:\\^?2|²)|inch|inches|lb|lbs|mi|mi2|mi\\s*(?:\\^?2|²)|mile|miles|ounce|ounces|oz|pint|pints|pound|pounds|pt|qt|quart|quarts|sq\\.?\\s*feet|sq\\.?\\s*foot|sq\\.?\\s*ft|sq\\.?\\s*ft\\.?|sq\\.?\\s*in|sq\\.?\\s*in\\.?|sq\\.?\\s*inch(?:es)?|sq\\.?\\s*mi|sq\\.?\\s*mi\\.?|sq\\.?\\s*mile(?:s)?|sq\\.?\\s*yard(?:s)?|sq\\.?\\s*yd|sq\\.?\\s*yd\\.?|sqft|square\\s+feet|square\\s+foot|square\\s+inch|square\\s+inches|square\\s+mile|square\\s+miles|square\\s+yard|square\\s+yards|tablespoon|tablespoons|tb|tbs|tbsp|teaspoon|teaspoons|ts|tsp|yard|yards|yd|yd2|yd\\s*(?:\\^?2|²)|’|”|′|″",
+  "UNIT_HINT_PATTERN": ""|'|CDT|CST|EDT|EST|GMT|MDT|MST|PDT|PST|UTC|acre(?:s)?|awg|cup|cups|feet|fl\\.?\\s*oz|fluid\\s+ounce|fluid\\s+ounces|foot|ft|ft2|ft\\s*(?:\\^?2|²)|gal|gallon|gallons|in|in2|in\\.|in\\s*(?:\\^?2|²)|inch|inches|lb|lbs|mi|mi2|mi\\s*(?:\\^?2|²)|mile|miles|ounce|ounces|oz|pint|pints|pound|pounds|pt|qt|quart|quarts|sq\\.?\\s*feet|sq\\.?\\s*foot|sq\\.?\\s*ft|sq\\.?\\s*ft\\.?|sq\\.?\\s*in|sq\\.?\\s*in\\.?|sq\\.?\\s*inch(?:es)?|sq\\.?\\s*mi|sq\\.?\\s*mi\\.?|sq\\.?\\s*mile(?:s)?|sq\\.?\\s*yard(?:s)?|sq\\.?\\s*yd|sq\\.?\\s*yd\\.?|sqft|square\\s+feet|square\\s+foot|square\\s+inch|square\\s+inches|square\\s+mile|square\\s+miles|square\\s+yard|square\\s+yards|tablespoon|tablespoons|tb|tbs|tbsp|teaspoon|teaspoons|ts|tsp|yard|yards|yd|yd2|yd\\s*(?:\\^?2|²)|’|”|′|″",
 }
 `;

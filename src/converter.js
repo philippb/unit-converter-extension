@@ -7,11 +7,34 @@ const { convertLiquidText } = require('./units/liquid.js');
 const { convertAreaText } = require('./units/area.js');
 const { convertTemperatureText } = require('./units/temperature.js');
 const { convertTimeZoneText } = require('./units/timezone.js');
-const { LIQUID_GALLON_TO_L, LIQUID_QUART_TO_L, LIQUID_PINT_TO_L, LIQUID_CUP_TO_L, LIQUID_FLOZ_TO_L, LIQUID_TBSP_TO_L, LIQUID_TSP_TO_L, UNICODE_FRACTIONS, INCH_SYMBOLS, FEET_SYMBOLS } = require('./utils/constants.js');
+const { convertAwgText } = require('./units/awg.js');
+const {
+    LIQUID_GALLON_TO_L,
+    LIQUID_QUART_TO_L,
+    LIQUID_PINT_TO_L,
+    LIQUID_CUP_TO_L,
+    LIQUID_FLOZ_TO_L,
+    LIQUID_TBSP_TO_L,
+    LIQUID_TSP_TO_L,
+    UNICODE_FRACTIONS,
+    INCH_SYMBOLS,
+    FEET_SYMBOLS,
+} = require('./utils/constants.js');
 const { convertToDecimal } = require('./parsing/numbers.js');
 const { parseMeasurementMatch, extractFirstValueToken } = require('./parsing/measurement.js');
-const { createRegexFromTemplate, RE_TEMPERATURE_F, RE_TEMPERATURE_F_TEST, RE_TIME_GLOBAL, RE_TIME_TEST } = require('./parsing/regex.js');
-const { formatLengthRange, formatWeightRange, formatLiquidRange, formatTemperatureRange } = require('./formatting/ranges.js');
+const {
+    createRegexFromTemplate,
+    RE_TEMPERATURE_F,
+    RE_TEMPERATURE_F_TEST,
+    RE_TIME_GLOBAL,
+    RE_TIME_TEST,
+} = require('./parsing/regex.js');
+const {
+    formatLengthRange,
+    formatWeightRange,
+    formatLiquidRange,
+    formatTemperatureRange,
+} = require('./formatting/ranges.js');
 
 /**
  * Fast pre-filter to check if text contains any relevant units
@@ -320,6 +343,8 @@ function convertText(text) {
         converted = convertWeightText(converted);
     }
 
+    converted = convertAwgText(converted);
+
     // Temperature ranges (Fahrenheit) - handle before individual conversions
     if (RE_TEMPERATURE_F_TEST.test(converted)) {
         // Handle temperature ranges like "350-400°F" or "70 to 80 degrees F"
@@ -354,6 +379,5 @@ function convertText(text) {
 
     return converted;
 }
-
 
 module.exports = { convertText, hasRelevantUnits };

@@ -101,6 +101,9 @@ const UNIT_SPECS = {
             PRIMARY: ['teaspoons', 'teaspoon', 'tsp', 'ts'],
         },
     },
+    AWG: {
+        PRIMARY: ['awg'],
+    },
     TIME_ZONE: {
         ABBREVIATIONS: {
             EST: ['EST'],
