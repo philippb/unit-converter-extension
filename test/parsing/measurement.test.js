@@ -1,4 +1,7 @@
-const { parseMeasurementMatch, extractFirstValueToken } = require('../../src/parsing/measurement.js');
+const {
+    parseMeasurementMatch,
+    extractFirstValueToken,
+} = require('../../src/parsing/measurement.js');
 const { UNITS } = require('../../src/units/index.js');
 
 describe('Measurement parsing module', () => {

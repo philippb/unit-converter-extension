@@ -129,10 +129,12 @@ Output Text
 ## Implementation Steps
 
 ### Step 1: Create Module Structure (No Logic Changes)
+
 **Risk**: None
 **Tests**: Must all pass
 
 **Actions**:
+
 1. Create `src/units/`, `src/exclusions/`, `src/parsing/`, `src/formatting/`, `src/utils/` directories
 2. Create empty files with JSDoc headers
 3. Update package.json if needed for module resolution
@@ -143,23 +145,27 @@ Output Text
 ---
 
 ### Step 2: Extract Constants
+
 **Risk**: Low
 **Tests**: Must all pass
 
 **Actions**:
+
 1. Create `src/utils/constants.js`:
-   - All `LENGTH_*_TO_METERS` constants
-   - All `WEIGHT_*_TO_GRAMS` constants
-   - All `AREA_*_TO_SQM` constants
-   - All `LIQUID_*_TO_L` constants
-   - `TIME_ZONE_OFFSETS`
-   - `UNICODE_FRACTIONS`, `UNICODE_FRACTIONS_MAP`, `UNICODE_FRACTIONS_DENOM`
-   - `CURRENCY_SYMBOLS`, `FEET_SYMBOLS`, `INCH_SYMBOLS`
+
+    - All `LENGTH_*_TO_METERS` constants
+    - All `WEIGHT_*_TO_GRAMS` constants
+    - All `AREA_*_TO_SQM` constants
+    - All `LIQUID_*_TO_L` constants
+    - `TIME_ZONE_OFFSETS`
+    - `UNICODE_FRACTIONS`, `UNICODE_FRACTIONS_MAP`, `UNICODE_FRACTIONS_DENOM`
+    - `CURRENCY_SYMBOLS`, `FEET_SYMBOLS`, `INCH_SYMBOLS`
 
 2. Update `content.js` to import from constants
 3. Run `npm test`
 
 **File: src/utils/constants.js** (~80 lines)
+
 ```javascript
 // Conversion constants
 export const LENGTH_INCH_TO_METERS = 0.0254;
@@ -170,20 +176,24 @@ export const LENGTH_FOOT_TO_METERS = 0.3048;
 ---
 
 ### Step 3: Extract Number Parsing
+
 **Risk**: Medium (core functionality)
 **Tests**: Must all pass, especially `convertToDecimal` tests
 
 **Actions**:
+
 1. Create `src/parsing/numbers.js`:
-   - Move `convertToDecimal()` function
-   - Move all `RE_*` regex patterns for number parsing
-   - Move unicode fraction maps (import from constants)
-   - Export `convertToDecimal`
+
+    - Move `convertToDecimal()` function
+    - Move all `RE_*` regex patterns for number parsing
+    - Move unicode fraction maps (import from constants)
+    - Export `convertToDecimal`
 
 2. Update `content.js` to import
 3. Run `npm test`
 
 **File: src/parsing/numbers.js** (~100 lines)
+
 ```javascript
 import { UNICODE_FRACTIONS_MAP } from '../utils/constants.js';
 
@@ -191,22 +201,25 @@ const RE_MIXED_UNICODE = /^(\d+)\s*([¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]
 // ... other regexes
 
 export function convertToDecimal(value) {
-  // ... existing implementation
+    // ... existing implementation
 }
 ```
 
 ---
 
 ### Step 4: Extract Regex Building
+
 **Risk**: Medium
 **Tests**: Must all pass, especially `createRegexFromTemplate` tests
 
 **Actions**:
+
 1. Create `src/parsing/regex.js`:
-   - Move `MEASUREMENT_REGEX_TEMPLATE`
-   - Move `measureRegexCache` and `createRegexFromTemplate()`
-   - Move `TIME_REGEX`, `RE_TIME_GLOBAL`, `RE_TIME_TEST`
-   - Move `TEMPERATURE_F_REGEX`, `RE_TEMPERATURE_F`, `RE_TEMPERATURE_F_TEST`
+
+    - Move `MEASUREMENT_REGEX_TEMPLATE`
+    - Move `measureRegexCache` and `createRegexFromTemplate()`
+    - Move `TIME_REGEX`, `RE_TIME_GLOBAL`, `RE_TIME_TEST`
+    - Move `TEMPERATURE_F_REGEX`, `RE_TEMPERATURE_F`, `RE_TEMPERATURE_F_TEST`
 
 2. Update `content.js` to import
 3. Run `npm test`
@@ -214,14 +227,17 @@ export function convertToDecimal(value) {
 ---
 
 ### Step 5: Extract Unit Definitions
+
 **Risk**: Medium
 **Tests**: Must all pass
 
 **Actions**:
+
 1. Create `src/units/index.js`:
-   - Move `UNIT_SPECS` object
-   - Move `buildUnitDataFromSpecs()` function
-   - Export `UNITS`, `UNIT_HINT_PATTERN`
+
+    - Move `UNIT_SPECS` object
+    - Move `buildUnitDataFromSpecs()` function
+    - Export `UNITS`, `UNIT_HINT_PATTERN`
 
 2. Update `content.js` to import
 3. Run `npm test`
@@ -229,18 +245,21 @@ export function convertToDecimal(value) {
 ---
 
 ### Step 6: Extract Precision/Resolution Utilities
+
 **Risk**: Low
 **Tests**: Must all pass
 
 **Actions**:
+
 1. Create `src/utils/precision.js`:
-   - Move `resolutionStepOfValueString()`
-   - Move `inferResolutionFromValue()`
-   - Move `mergeResolutionSteps()`
-   - Move `inferResolutionMetersFromNumber()`
-   - Move `inferResolutionMetersFromLengthMatch()`
-   - Move `inferResolutionFromParsedMeasurement()`
-   - Move `computeDecimalPlaces()`
+
+    - Move `resolutionStepOfValueString()`
+    - Move `inferResolutionFromValue()`
+    - Move `mergeResolutionSteps()`
+    - Move `inferResolutionMetersFromNumber()`
+    - Move `inferResolutionMetersFromLengthMatch()`
+    - Move `inferResolutionFromParsedMeasurement()`
+    - Move `computeDecimalPlaces()`
 
 2. Update `content.js` to import
 3. Run `npm test`
@@ -248,24 +267,29 @@ export function convertToDecimal(value) {
 ---
 
 ### Step 7: Extract Formatting Utilities
+
 **Risk**: Medium
-**Tests**: Must all pass, especially format* tests
+**Tests**: Must all pass, especially format\* tests
 
 **Actions**:
+
 1. Create `src/formatting/numbers.js`:
-   - Move `formatNumberWithGrouping()`
+
+    - Move `formatNumberWithGrouping()`
 
 2. Create `src/formatting/units.js`:
-   - Move `formatMeasurement()` (generic)
-   - Move `formatLengthMeasurement()`
-   - Move `formatWeightMeasurement()`
-   - Move `formatLiquidMeasurement()`
-   - Move `formatAreaMeasurement()`
-   - Move `formatTemperatureCelsius()`
+
+    - Move `formatMeasurement()` (generic)
+    - Move `formatLengthMeasurement()`
+    - Move `formatWeightMeasurement()`
+    - Move `formatLiquidMeasurement()`
+    - Move `formatAreaMeasurement()`
+    - Move `formatTemperatureCelsius()`
 
 3. Create `src/formatting/ranges.js`:
-   - Move `formatLengthRange()`, `formatWeightRange()`, `formatLiquidRange()`, `formatTemperatureRange()`
-   - Move `formatNum()` helper
+
+    - Move `formatLengthRange()`, `formatWeightRange()`, `formatLiquidRange()`, `formatTemperatureRange()`
+    - Move `formatNum()` helper
 
 4. Update `content.js` to import
 5. Run `npm test`
@@ -273,14 +297,17 @@ export function convertToDecimal(value) {
 ---
 
 ### Step 8: Extract Measurement Parsing
+
 **Risk**: Medium
 **Tests**: Must all pass
 
 **Actions**:
+
 1. Create `src/parsing/measurement.js`:
-   - Move `unitRegexCache`, `getUnitRegexes()`
-   - Move `parseMeasurementMatch()`
-   - Move `extractFirstValueToken()`
+
+    - Move `unitRegexCache`, `getUnitRegexes()`
+    - Move `parseMeasurementMatch()`
+    - Move `extractFirstValueToken()`
 
 2. Update `content.js` to import
 3. Run `npm test`
@@ -288,99 +315,117 @@ export function convertToDecimal(value) {
 ---
 
 ### Step 9: Extract Exclusion Logic (NEW - Bug Fixes)
+
 **Risk**: Medium-High (this is where bug fixes go)
 **Tests**: Must all pass + add new tests for exclusions
 
 **Actions**:
+
 1. Create `src/exclusions/patterns.js`:
-   - Move `hasCurrencyPrefix()` and rename to more generic `hasInvalidPrefix()`
-   - **NEW**: Add colon check for port numbers (fixes #17)
-   - **NEW**: Add `isInsideQuotes()` function (fixes #12)
-   - Export unified `shouldExcludeMatch(text, matchStart, match)` function
+
+    - Move `hasCurrencyPrefix()` and rename to more generic `hasInvalidPrefix()`
+    - **NEW**: Add colon check for port numbers (fixes #17)
+    - **NEW**: Add `isInsideQuotes()` function (fixes #12)
+    - Export unified `shouldExcludeMatch(text, matchStart, match)` function
 
 2. Create `src/exclusions/context.js`:
-   - Move `SKIP_TAGS` set
-   - Move `isInSkippableContainer()`
-   - Move `isEditableContext()`
-   - **NEW**: Add `hasCodeRelatedClass()` (fixes #9, #14)
-   - Export unified `isExcludedContext(node)` function
+
+    - Move `SKIP_TAGS` set
+    - Move `isInSkippableContainer()`
+    - Move `isEditableContext()`
+    - **NEW**: Add `hasCodeRelatedClass()` (fixes #9, #14)
+    - Export unified `isExcludedContext(node)` function
 
 3. Create `src/exclusions/index.js`:
-   - Facade that combines pattern and context exclusions
-   - Export `shouldExclude({ node, text, matchStart, match })`
+
+    - Facade that combines pattern and context exclusions
+    - Export `shouldExclude({ node, text, matchStart, match })`
 
 4. Update `content.js` to use new exclusion API
 5. Run `npm test`
 
 **Currency exclusion**
+
 - **New**: In `src/exclusions/patterns.js`, add `hasCurrencyContext(text, matchStart)` / `shouldExcludeCurrencyIn(text, match)` helpers that look for currency symbols (`$€£¥…`) or words like `USD`, `AUD`, etc. immediately before the `in` abbreviation so the unit is skipped when part of testimonials such as `"$2,400 in the first year"`. This keeps React from hydrating mismatched DOMs and directly addresses issue #6.
 
 **Tests Added**:
+
 - Add “Code Context” suite in `test/issues/` that mirrors the eight assertions described in the open PR fixing #9: verify `<code>`, `<pre>`, `<kbd>`, `<samp>`, `<var>` (plus nested variants) leave measurements untouched while regular text around them still converts.
 - Extend the new suite with the quoted-string regression tests from the open PR fixing #12: strings like `"top 30"`, `"zip": "94110"`, `'top 30'`, and `"section 22"` must remain unchanged, while actual measurements such as `Board is 6" wide` and `It's 5' tall` continue to convert.
 
 **File: src/exclusions/patterns.js** (~100 lines)
+
 ```javascript
 const INVALID_PREFIXES = '$€£¥₹₽₩₺₪₫₴₦₱฿₭₲₡₵₸₼₾₿:'; // Added colon for ports
 
 export function hasInvalidPrefix(s, startIndex) {
-  if (!s || typeof s !== 'string') return false;
-  let i = startIndex - 1;
-  while (i >= 0 && /\s/.test(s[i])) i--;
-  if (i < 0) return false;
-  return INVALID_PREFIXES.includes(s[i]);
+    if (!s || typeof s !== 'string') return false;
+    let i = startIndex - 1;
+    while (i >= 0 && /\s/.test(s[i])) i--;
+    if (i < 0) return false;
+    return INVALID_PREFIXES.includes(s[i]);
 }
 
 const QUOTE_CHARS = '"\'\u201c\u201d\u2018\u2019';
 
 export function isInsideQuotes(s, startIndex, match) {
-  // Implementation from existing PR #27
+    // Implementation from existing PR #27
 }
 
 export function shouldExcludeMatch(text, matchStart, match) {
-  if (hasInvalidPrefix(text, matchStart)) return true;
-  if (isInsideQuotes(text, matchStart, match)) return true;
-  return false;
+    if (hasInvalidPrefix(text, matchStart)) return true;
+    if (isInsideQuotes(text, matchStart, match)) return true;
+    return false;
 }
 ```
 
 ---
 
 ### Step 10: Extract Individual Unit Converters
+
 **Risk**: Medium
 **Tests**: Must all pass
 
 **Actions**:
+
 1. Create `src/units/length.js`:
-   - Move `convertLengthToMeters()`
-   - Move `convertLengthText()`
-   - Import exclusions, parsing, formatting
+
+    - Move `convertLengthToMeters()`
+    - Move `convertLengthText()`
+    - Import exclusions, parsing, formatting
 
 2. Create `src/units/weight.js`:
-   - Move `convertWeightToGrams()`
-   - Move `convertWeightText()`
+
+    - Move `convertWeightToGrams()`
+    - Move `convertWeightText()`
 
 3. Create `src/units/liquid.js`:
-   - Move `convertLiquidText()`
+
+    - Move `convertLiquidText()`
 
 4. Create `src/units/area.js`:
-   - Move `convertAreaText()`
+
+    - Move `convertAreaText()`
 
 5. Create `src/units/temperature.js`:
-   - Move `convertTemperatureText()`
-   - **FIX**: Update regex to handle negative temps (fixes #10)
+
+    - Move `convertTemperatureText()`
+    - **FIX**: Update regex to handle negative temps (fixes #10)
 
 6. Create `src/units/timezone.js`:
-   - Move `convertTimeZone()`
-   - Move `convertTimeZoneText()`
+
+    - Move `convertTimeZone()`
+    - Move `convertTimeZoneText()`
 
 7. Run `npm test` after each file
 
 **Tests Added**:
+
 - Add a temperature-focused suite covering the scenarios in the open PR fixing #10: parse positive (`32°F`, `212°F`, `70°F`, `98.6°F`) and negative (`-40°F`, `-10°F`, `-4°F`, `0°F`) temperatures, including ranges like `-40°F to 140°F` and various notation variants (`F`, `deg F`, `degrees F`, `Fahrenheit`).
 - Introduce a “Shared Inch Dimensions” suite (issue #20) that confirms `6×9"`, `6x9"`, `Book is 6×9″`, `8.5x11"`, and any `AxB"` pattern convert both dimensions together and produce `valueAxvalueB cm` output.
 
 **File: src/units/temperature.js** (~50 lines)
+
 ```javascript
 import { RE_TEMPERATURE_F } from '../parsing/regex.js';
 import { formatTemperatureCelsius } from '../formatting/units.js';
@@ -390,25 +435,28 @@ import { inferResolutionFromValue } from '../utils/precision.js';
 const TEMPERATURE_F_REGEX = String.raw`(?<!\()(?<![\d.])(-?\d+(?:\.\d+)?)\s*(?:°\s*F|℉|...`;
 
 export function convertTemperatureText(text) {
-  return text.replace(RE_TEMPERATURE_F, (match, fStr) => {
-    const f = parseFloat(fStr);
-    if (Number.isNaN(f)) return match;
-    const c = ((f - 32) * 5) / 9;
-    return `${match} (${formatTemperatureCelsius(c)}°C)`;
-  });
+    return text.replace(RE_TEMPERATURE_F, (match, fStr) => {
+        const f = parseFloat(fStr);
+        if (Number.isNaN(f)) return match;
+        const c = ((f - 32) * 5) / 9;
+        return `${match} (${formatTemperatureCelsius(c)}°C)`;
+    });
 }
 ```
 
 ---
 
 ### Step 11: Extract Pre-filter and Detection
+
 **Risk**: Low
 **Tests**: Must all pass, especially `hasRelevantUnits` tests
 
 **Actions**:
+
 1. Move to `src/converter.js`:
-   - Move `hasRelevantUnits()` with all hint regexes
-   - Move `containsUnits()` helper
+
+    - Move `hasRelevantUnits()` with all hint regexes
+    - Move `containsUnits()` helper
 
 2. Update `content.js` to import
 3. Run `npm test`
@@ -416,16 +464,18 @@ export function convertTemperatureText(text) {
 ---
 
 ### Step 12: Create Main Converter Pipeline
+
 **Risk**: High (central orchestration)
 **Tests**: Must all pass
 
 **Actions**:
+
 1. Create `src/converter.js`:
-   - Move `convertText()` function
-   - Move `mergeUnitRanges()` and range handling
-   - Move placeholder management
-   - Import all unit converters
-   - Implement clean pipeline:
+    - Move `convertText()` function
+    - Move `mergeUnitRanges()` and range handling
+    - Move placeholder management
+    - Import all unit converters
+    - Implement clean pipeline:
 
 ```javascript
 import { hasRelevantUnits, containsUnits } from './detection.js';
@@ -438,29 +488,29 @@ import { convertTimeZoneText } from './units/timezone.js';
 import { UNITS } from './units/index.js';
 
 export function convertText(text) {
-  // Phase 1: Pre-filter
-  if (!hasRelevantUnits(text)) return text;
+    // Phase 1: Pre-filter
+    if (!hasRelevantUnits(text)) return text;
 
-  let result = text;
+    let result = text;
 
-  // Phase 2: Range detection (insert placeholders)
-  const { text: withPlaceholders, placeholders } = detectRanges(result);
-  result = withPlaceholders;
+    // Phase 2: Range detection (insert placeholders)
+    const { text: withPlaceholders, placeholders } = detectRanges(result);
+    result = withPlaceholders;
 
-  // Phase 3: Unit conversions (order matters!)
-  if (hasAreaUnits(result)) result = convertAreaText(result);
-  if (hasLengthUnits(result)) result = convertLengthText(result);
-  if (hasLiquidUnits(result)) result = convertLiquidText(result);
-  if (hasWeightUnits(result)) result = convertWeightText(result);
+    // Phase 3: Unit conversions (order matters!)
+    if (hasAreaUnits(result)) result = convertAreaText(result);
+    if (hasLengthUnits(result)) result = convertLengthText(result);
+    if (hasLiquidUnits(result)) result = convertLiquidText(result);
+    if (hasWeightUnits(result)) result = convertWeightText(result);
 
-  // Phase 4: Temperature & Timezone
-  result = convertTemperatureText(result);
-  result = convertTimeZoneText(result);
+    // Phase 4: Temperature & Timezone
+    result = convertTemperatureText(result);
+    result = convertTimeZoneText(result);
 
-  // Phase 5: Restore placeholders
-  result = restorePlaceholders(result, placeholders);
+    // Phase 5: Restore placeholders
+    result = restorePlaceholders(result, placeholders);
 
-  return result;
+    return result;
 }
 ```
 
@@ -469,22 +519,26 @@ export function convertText(text) {
 ---
 
 ### Step 13: Slim Down content.js to Entry Point
+
 **Risk**: Medium
 **Tests**: Must all pass
 
 **Actions**:
+
 1. Refactor `content.js` to only contain:
-   - Imports from modules
-   - `processElement()` / `processNode()` - DOM walking
-   - `createInsertedSpan()` - DOM insertion
-   - MutationObserver setup
-   - Chrome message listener
-   - Module exports for testing
+
+    - Imports from modules
+    - `processElement()` / `processNode()` - DOM walking
+    - `createInsertedSpan()` - DOM insertion
+    - MutationObserver setup
+    - Chrome message listener
+    - Module exports for testing
 
 2. Target: ~200 lines
 3. Run `npm test`
 
 **File: src/content.js** (~200 lines)
+
 ```javascript
 import { convertText } from './converter.js';
 import { isExcludedContext } from './exclusions/index.js';
@@ -493,21 +547,21 @@ import { isBlacklistedUrl } from './utils/constants.js';
 
 // DOM processing
 function processElement(node) {
-  if (isExcludedContext(node)) return;
+    if (isExcludedContext(node)) return;
 
-  if (node.nodeType === Node.ELEMENT_NODE) {
-    for (const child of node.childNodes) {
-      processElement(child);
-    }
-  } else if (node.nodeType === Node.TEXT_NODE) {
-    const text = node.textContent;
-    if (!hasRelevantUnits(text)) return;
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        for (const child of node.childNodes) {
+            processElement(child);
+        }
+    } else if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent;
+        if (!hasRelevantUnits(text)) return;
 
-    const converted = convertText(text);
-    if (text !== converted) {
-      replaceTextWithConversion(node, text, converted);
+        const converted = convertText(text);
+        if (text !== converted) {
+            replaceTextWithConversion(node, text, converted);
+        }
     }
-  }
 }
 
 // ... MutationObserver, Chrome messaging, exports
@@ -516,10 +570,12 @@ function processElement(node) {
 ---
 
 ### Step 14: Fix Remaining Issues
+
 **Risk**: Medium
 **Tests**: Add new issue-specific tests, all must pass
 
 **Actions**:
+
 1. **Fix #32 (in abbreviation)**: In `src/units/index.js`, change `'in'` to `'in\\.'`
 2. **Fix #15 (double apostrophe)**: In `src/units/length.js`, add `''` pattern to inch regex
 3. Add issue-specific test files in `test/issues/`
@@ -528,113 +584,118 @@ function processElement(node) {
 ---
 
 ### Step 15: Verify All Issue Fixes
+
 **Risk**: Low
 **Tests**: All tests including new issue tests must pass
 
 **Actions**:
+
 1. Create comprehensive test file `test/issues/all-issues.test.js`:
+
 ```javascript
 describe('Issue Fixes', () => {
-  test('#6: React hydration - currency + in', () => {
-    expect(convertText('$2,400 in the first year')).toBe('$2,400 in the first year');
-  });
-
-  describe('#9: Code/context skipping', () => {
-    const codeSnippets = [
-      ['<code>$5 6" code</code>', '<code>$5 6" code</code>'],
-      ['<pre>  6 ft 3 in</pre>', '<pre>  6 ft 3 in</pre>'],
-      ['<kbd>press ENTER</kbd>', '<kbd>press ENTER</kbd>'],
-      ['<samp>output: 6×9"</samp>', '<samp>output: 6×9&quot;</samp>'],
-      ['<var>const size = 6" * 9"</var>', '<var>const size = 6&quot; * 9&quot;</var>'],
-      ['<code><span>6" nested</span></code>', '<code><span>6&quot; nested</span></code>'],
-    ];
-    for (const [input, expected] of codeSnippets) {
-      test(`does not convert ${input}`, () => {
-        expect(convertText(input)).toBe(expected);
-      });
-    }
-    test('converts text outside code blocks', () => {
-      expect(convertText('Code block: <code>6" should stay</code> outside')).toContain('outside');
+    test('#6: React hydration - currency + in', () => {
+        expect(convertText('$2,400 in the first year')).toBe('$2,400 in the first year');
     });
-  });
 
-  test('#10: Negative Fahrenheit and formats', () => {
-    const samples = [
-      ['32°F', '32°F (0.0°C)'],
-      ['212°F', '212°F (100.0°C)'],
-      ['-40°F', '-40°F (-40.0°C)'],
-      ['-10°F', '-10°F (-23.3°C)'],
-      ['-4°F', '-4°F (-20.0°C)'],
-      ['0°F', '0°F (-17.8°C)'],
-      ['-40°F to 140°F', expect.stringContaining('-40°F (-40.0°C) to 140°F (60.0°C)')],
-      ['98.6 Fahrenheit', '98.6 Fahrenheit (37.0°C)'],
-    ];
-    for (const [input, expected] of samples) {
-      expect(convertText(input)).toContain(expected);
-    }
-  });
-
-  describe('#12: Quotes exclusion', () => {
-    const quotedInputs = [
-      ['The "top 30" actions to unify', 'The "top 30" actions to unify'],
-      ['"zip": "94110"', '"zip": "94110"'],
-      ['"apn": "4210-040"', '"apn": "4210-040"'],
-      ['The "section 22" was reviewed', 'The "section 22" was reviewed'],
-      ["The 'top 30' actions to unify", "The 'top 30' actions to unify"],
-    ];
-    for (const [input, expected] of quotedInputs) {
-      test(input, () => {
-        expect(convertText(input)).toBe(expected);
-      });
-    }
-    test('Still converts actual measurements in quotes', () => {
-      expect(convertText("Board is 6\" wide")).toContain('6" (');
-      expect(convertText("It's 5' tall")).toContain("5' ");
+    describe('#9: Code/context skipping', () => {
+        const codeSnippets = [
+            ['<code>$5 6" code</code>', '<code>$5 6" code</code>'],
+            ['<pre>  6 ft 3 in</pre>', '<pre>  6 ft 3 in</pre>'],
+            ['<kbd>press ENTER</kbd>', '<kbd>press ENTER</kbd>'],
+            ['<samp>output: 6×9"</samp>', '<samp>output: 6×9&quot;</samp>'],
+            ['<var>const size = 6" * 9"</var>', '<var>const size = 6&quot; * 9&quot;</var>'],
+            ['<code><span>6" nested</span></code>', '<code><span>6&quot; nested</span></code>'],
+        ];
+        for (const [input, expected] of codeSnippets) {
+            test(`does not convert ${input}`, () => {
+                expect(convertText(input)).toBe(expected);
+            });
+        }
+        test('converts text outside code blocks', () => {
+            expect(convertText('Code block: <code>6" should stay</code> outside')).toContain(
+                'outside'
+            );
+        });
     });
-  });
 
-  test('#15: Double apostrophes as inches', () => {
-    const cases = [
-      '19\'\' Crossflow Wheels',
-      'Display: 5\'\'',
-      'Dimensions 19\'\' × 10\'\'',
-      '19\'\' (48.26 cm) noted twice',
-    ];
-    for (const input of cases) {
-      expect(convertText(input)).toContain('19\'\'');
-      expect(convertText(input)).toContain('cm');
-    }
-  });
+    test('#10: Negative Fahrenheit and formats', () => {
+        const samples = [
+            ['32°F', '32°F (0.0°C)'],
+            ['212°F', '212°F (100.0°C)'],
+            ['-40°F', '-40°F (-40.0°C)'],
+            ['-10°F', '-10°F (-23.3°C)'],
+            ['-4°F', '-4°F (-20.0°C)'],
+            ['0°F', '0°F (-17.8°C)'],
+            ['-40°F to 140°F', expect.stringContaining('-40°F (-40.0°C) to 140°F (60.0°C)')],
+            ['98.6 Fahrenheit', '98.6 Fahrenheit (37.0°C)'],
+        ];
+        for (const [input, expected] of samples) {
+            expect(convertText(input)).toContain(expected);
+        }
+    });
 
-  test('#17: Port numbers stay unchanged', () => {
-    const portSamples = [
-      'localhost:3000 in your browser',
-      'http://127.0.0.1:8080/dashboard',
-      'https://example.com:443/page?size=6"',
-      'IP with port 192.168.1.1:5000 showing data',
-      'ftp://server:21/data',
-    ];
-    for (const input of portSamples) {
-      expect(convertText(input)).toBe(input);
-    }
-  });
+    describe('#12: Quotes exclusion', () => {
+        const quotedInputs = [
+            ['The "top 30" actions to unify', 'The "top 30" actions to unify'],
+            ['"zip": "94110"', '"zip": "94110"'],
+            ['"apn": "4210-040"', '"apn": "4210-040"'],
+            ['The "section 22" was reviewed', 'The "section 22" was reviewed'],
+            ["The 'top 30' actions to unify", "The 'top 30' actions to unify"],
+        ];
+        for (const [input, expected] of quotedInputs) {
+            test(input, () => {
+                expect(convertText(input)).toBe(expected);
+            });
+        }
+        test('Still converts actual measurements in quotes', () => {
+            expect(convertText('Board is 6" wide')).toContain('6" (');
+            expect(convertText("It's 5' tall")).toContain("5' ");
+        });
+    });
 
-  describe('#20: Shared inch dimension conversions', () => {
-    const dimensionSamples = [
-      ['6×9"', '6×9" (15.24x22.86 cm)'],
-      ['6x9"', '6x9" (15.24x22.86 cm)'],
-      ['Book is 6×9″ size', expect.stringContaining('15.24x22.86 cm')],
-      ['8.5x11"', expect.stringContaining('21.59x27.94 cm')],
-    ];
-    for (const [input, expected] of dimensionSamples) {
-      expect(convertText(input)).toContain(expected);
-    }
-  });
+    test('#15: Double apostrophes as inches', () => {
+        const cases = [
+            "19'' Crossflow Wheels",
+            "Display: 5''",
+            "Dimensions 19'' × 10''",
+            "19'' (48.26 cm) noted twice",
+        ];
+        for (const input of cases) {
+            expect(convertText(input)).toContain("19''");
+            expect(convertText(input)).toContain('cm');
+        }
+    });
 
-  test('#32: "in" abbreviation', () => {
-    expect(convertText('2025 in California')).toBe('2025 in California');
-    expect(convertText('6 in. pipe')).toContain('15.24 cm');
-  });
+    test('#17: Port numbers stay unchanged', () => {
+        const portSamples = [
+            'localhost:3000 in your browser',
+            'http://127.0.0.1:8080/dashboard',
+            'https://example.com:443/page?size=6"',
+            'IP with port 192.168.1.1:5000 showing data',
+            'ftp://server:21/data',
+        ];
+        for (const input of portSamples) {
+            expect(convertText(input)).toBe(input);
+        }
+    });
+
+    describe('#20: Shared inch dimension conversions', () => {
+        const dimensionSamples = [
+            ['6×9"', '6×9" (15.24x22.86 cm)'],
+            ['6x9"', '6x9" (15.24x22.86 cm)'],
+            ['Book is 6×9″ size', expect.stringContaining('15.24x22.86 cm')],
+            ['8.5x11"', expect.stringContaining('21.59x27.94 cm')],
+        ];
+        for (const [input, expected] of dimensionSamples) {
+            expect(convertText(input)).toContain(expected);
+        }
+    });
+
+    test('#32: "in" abbreviation', () => {
+        expect(convertText('2025 in California')).toBe('2025 in California');
+        expect(convertText('6 in. pipe')).toContain('15.24 cm');
+    });
 });
 ```
 
@@ -643,10 +704,12 @@ describe('Issue Fixes', () => {
 ---
 
 ### Step 16: Documentation and Cleanup
+
 **Risk**: None
 **Tests**: Must all pass
 
 **Actions**:
+
 1. Add JSDoc comments to all exported functions
 2. Update CLAUDE.md with new architecture
 3. Create architecture diagram in docs/
@@ -695,6 +758,7 @@ Update each checkbox when its refactor/tests are complete; log the test result a
 ### Rollback Plan
 
 Each step is a single commit. If tests fail:
+
 ```bash
 git revert HEAD
 ```
@@ -710,21 +774,21 @@ git revert HEAD
 
 ## Success Metrics
 
-| Metric | Before | After |
-|--------|--------|-------|
-| content.js lines | 2100 | ~200 |
-| Total source lines | 2100 | ~1500 |
-| Number of modules | 1 | 17 |
-| Test count | 185 | 200+ |
-| Bug fixes included | 0 | 6 (#6, #9, #10, #12, #15, #17, #32) |
-| Max function length | 330 lines | <100 lines |
+| Metric              | Before    | After                               |
+| ------------------- | --------- | ----------------------------------- |
+| content.js lines    | 2100      | ~200                                |
+| Total source lines  | 2100      | ~1500                               |
+| Number of modules   | 1         | 17                                  |
+| Test count          | 185       | 200+                                |
+| Bug fixes included  | 0         | 6 (#6, #9, #10, #12, #15, #17, #32) |
+| Max function length | 330 lines | <100 lines                          |
 
 ---
-
 
 ## Implementation Log
 
 ### Step 1 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -733,6 +797,7 @@ git revert HEAD
 ---
 
 ### Step 2 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -741,6 +806,7 @@ git revert HEAD
 ---
 
 ### Step 3 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -749,6 +815,7 @@ git revert HEAD
 ---
 
 ### Step 4 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -757,6 +824,7 @@ git revert HEAD
 ---
 
 ### Step 5 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -765,6 +833,7 @@ git revert HEAD
 ---
 
 ### Step 6 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -773,6 +842,7 @@ git revert HEAD
 ---
 
 ### Step 7 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -781,6 +851,7 @@ git revert HEAD
 ---
 
 ### Step 8 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -789,6 +860,7 @@ git revert HEAD
 ---
 
 ### Step 9 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -797,6 +869,7 @@ git revert HEAD
 ---
 
 ### Step 10 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -805,6 +878,7 @@ git revert HEAD
 ---
 
 ### Step 11 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -813,6 +887,7 @@ git revert HEAD
 ---
 
 ### Step 12 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -821,6 +896,7 @@ git revert HEAD
 ---
 
 ### Step 13 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-08
@@ -829,6 +905,7 @@ git revert HEAD
 ---
 
 ### Step 14 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-09
@@ -837,6 +914,7 @@ git revert HEAD
 ---
 
 ### Step 15 Log
+
 **Status**: COMPLETED
 **Agent**: Codex
 **Date**: 2025-12-09
@@ -845,6 +923,7 @@ git revert HEAD
 ---
 
 ### Step 16 Log
+
 **Status**: PENDING
 **Agent**: -
 **Date**: -
@@ -878,30 +957,31 @@ content.js
 ## Appendix: Current Exports to Preserve
 
 The following exports must remain available for tests:
+
 ```javascript
 module.exports = {
-  convertText,
-  convertLengthText,
-  convertAreaText,
-  convertWeightText,
-  convertLiquidText,
-  convertTemperatureText,
-  convertTimeZoneText,
-  processNode,
-  processElement,
-  hasRelevantUnits,
-  isBlacklistedUrl,
-  formatLengthMeasurement,
-  formatAreaMeasurement,
-  formatWeightMeasurement,
-  formatLiquidMeasurement,
-  formatTemperatureCelsius,
-  isEditableContext,
-  convertToDecimal,
-  createRegexFromTemplate,
-  parseMeasurementMatch,
-  convertTimeZone,
-  resolutionStepOfValueString,
-  inferResolutionMetersFromNumber,
+    convertText,
+    convertLengthText,
+    convertAreaText,
+    convertWeightText,
+    convertLiquidText,
+    convertTemperatureText,
+    convertTimeZoneText,
+    processNode,
+    processElement,
+    hasRelevantUnits,
+    isBlacklistedUrl,
+    formatLengthMeasurement,
+    formatAreaMeasurement,
+    formatWeightMeasurement,
+    formatLiquidMeasurement,
+    formatTemperatureCelsius,
+    isEditableContext,
+    convertToDecimal,
+    createRegexFromTemplate,
+    parseMeasurementMatch,
+    convertTimeZone,
+    resolutionStepOfValueString,
+    inferResolutionMetersFromNumber,
 };
 ```

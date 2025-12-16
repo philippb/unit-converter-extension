@@ -31,8 +31,7 @@ const CODE_CLASS_PREFIXES = ['language-', 'lang-', 'cm-', 'CodeMirror'];
 
 function hasCodeRelatedClass(classNames) {
     if (!classNames) return false;
-    const iterable =
-        typeof classNames === 'string' ? classNames.split(/\s+/) : classNames;
+    const iterable = typeof classNames === 'string' ? classNames.split(/\s+/) : classNames;
     for (const cls of iterable) {
         if (!cls) continue;
         if (CODE_CLASS_PATTERNS.includes(cls)) {

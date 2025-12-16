@@ -1,4 +1,9 @@
-const { UNIT_SPECS, buildUnitDataFromSpecs, UNITS, UNIT_HINT_PATTERN } = require('../../src/units/index.js');
+const {
+    UNIT_SPECS,
+    buildUnitDataFromSpecs,
+    UNITS,
+    UNIT_HINT_PATTERN,
+} = require('../../src/units/index.js');
 
 describe('Units registry', () => {
     test('buildUnitDataFromSpecs returns metadata that matches the module exports', () => {

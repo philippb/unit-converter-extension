@@ -11,7 +11,7 @@
 
 const { processNode } = require('../../src/content.js');
 
-describe('GitHub Issue #14 - Don\'t convert in code (CodeMirror)', () => {
+describe("GitHub Issue #14 - Don't convert in code (CodeMirror)", () => {
     beforeEach(() => {
         document.body.innerHTML = '';
     });

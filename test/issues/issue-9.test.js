@@ -182,8 +182,7 @@ describe('Issue #9: Exclude content in <code>', () => {
 
     describe('Code with class-based detection', () => {
         test('should not convert in elements with hljs class', () => {
-            document.body.innerHTML =
-                '<div class="hljs"><code>let height = 6 feet;</code></div>';
+            document.body.innerHTML = '<div class="hljs"><code>let height = 6 feet;</code></div>';
             const codeElement = document.body.querySelector('code');
 
             processNode(document.body);
@@ -215,8 +214,7 @@ describe('Issue #9: Exclude content in <code>', () => {
         });
 
         test('should not convert in elements with prism class', () => {
-            document.body.innerHTML =
-                '<pre class="prism"><code>height: 5 feet</code></pre>';
+            document.body.innerHTML = '<pre class="prism"><code>height: 5 feet</code></pre>';
             const codeElement = document.body.querySelector('code');
 
             processNode(document.body);

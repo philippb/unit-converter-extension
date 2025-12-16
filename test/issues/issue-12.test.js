@@ -14,7 +14,7 @@
 
 const { convertText, processNode } = require('../../src/content.js');
 
-describe('GitHub Issue #12: Don\'t convert things in quotes', () => {
+describe("GitHub Issue #12: Don't convert things in quotes", () => {
     describe('Should NOT convert quoted non-measurements', () => {
         test('Example from issue: "top 30"', () => {
             const input = 'The "top 30" actions to unify';
@@ -46,7 +46,7 @@ describe('GitHub Issue #12: Don\'t convert things in quotes', () => {
             expect(output).not.toContain('(');
         });
 
-        test('Single quotes: \'top 30\'', () => {
+        test("Single quotes: 'top 30'", () => {
             const input = "The 'top 30' actions to unify";
             const output = convertText(input);
             expect(output).toBe(input);
@@ -110,7 +110,7 @@ describe('GitHub Issue #12: Don\'t convert things in quotes', () => {
             expect(output).toContain('cm');
         });
 
-        test('Feet using single quote symbol: 5\'', () => {
+        test("Feet using single quote symbol: 5'", () => {
             const input = "It's 5' tall";
             const output = convertText(input);
             expect(output).toContain("5' ");
@@ -118,7 +118,7 @@ describe('GitHub Issue #12: Don\'t convert things in quotes', () => {
         });
 
         test('Mixed feet and inches: 6\' 2"', () => {
-            const input = "The door is 6' 2\" tall";
+            const input = 'The door is 6\' 2" tall';
             const output = convertText(input);
             expect(output).toContain('(');
             expect(output).toContain('cm');

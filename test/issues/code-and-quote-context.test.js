@@ -8,7 +8,10 @@ describe('Code Context Skipping', () => {
         ['<samp>output: 6×9"</samp>', '<samp>output: 6×9"</samp>'],
         ['<var>const size = 6" * 9"</var>', '<var>const size = 6" * 9"</var>'],
         ['<code><span>6" nested</span></code>', '<code><span>6" nested</span></code>'],
-        ['<pre class="hljs"><code>12 inches</code></pre>', '<pre class="hljs"><code>12 inches</code></pre>'],
+        [
+            '<pre class="hljs"><code>12 inches</code></pre>',
+            '<pre class="hljs"><code>12 inches</code></pre>',
+        ],
         ['<span class="cm-string">6 ft</span>', '<span class="cm-string">6 ft</span>'],
     ];
 
@@ -48,7 +51,7 @@ describe('Quote Exclusion', () => {
     }
 
     test('still converts actual measurements inside quotes when they are measurements', () => {
-        expect(convertText("Board is 6\" wide")).toContain('6" (');
+        expect(convertText('Board is 6" wide')).toContain('6" (');
         expect(convertText("It's 5' tall")).toContain("5' ");
     });
 });

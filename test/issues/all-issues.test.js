@@ -72,9 +72,9 @@ describe('Issue Fixes', () => {
 
     test('#15: Double apostrophes as inches', () => {
         const cases = [
-            ['19\'\' Crossflow Wheels', ['(48.26 cm)']],
-            ['Display: 5\'\'', ['(12.7 cm)']],
-            ['Dimensions 19\'\' × 10\'\'', ['(48.26 cm)', '25.4 cm']],
+            ["19'' Crossflow Wheels", ['(48.26 cm)']],
+            ["Display: 5''", ['(12.7 cm)']],
+            ["Dimensions 19'' × 10''", ['(48.26 cm)', '25.4 cm']],
         ];
 
         for (const [input, expectedValues] of cases) {

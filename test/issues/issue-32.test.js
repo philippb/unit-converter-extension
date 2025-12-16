@@ -12,7 +12,8 @@ const { convertText, processNode } = require('../../src/content.js');
 describe('Issue #32: "in" abbreviation should require a period', () => {
     describe('Should NOT convert plain "in" (preposition use cases)', () => {
         test('does not convert "in" when used as preposition with month names', () => {
-            const text = 'In May 2025 in California, roughly 32% of customers\' fares went toward covering';
+            const text =
+                "In May 2025 in California, roughly 32% of customers' fares went toward covering";
             expect(convertText(text)).toBe(text);
         });
 
@@ -23,7 +24,10 @@ describe('Issue #32: "in" abbreviation should require a period', () => {
         test('CURRENTLY FAILS: does not convert "in" in common phrases with lowercase words', () => {
             // These tests demonstrate the bug is still present
             const buggyTestCases = [
-                { input: 'In 2024 in the United States', currentBehavior: 'In 2024 in (51.41 m) the United States' },
+                {
+                    input: 'In 2024 in the United States',
+                    currentBehavior: 'In 2024 in (51.41 m) the United States',
+                },
                 { input: '100 in stock', currentBehavior: '100 in (2.54 m) stock' },
                 { input: '50 in total', currentBehavior: '50 in (1.27 m) total' },
                 { input: '30 in each box', currentBehavior: '30 in (76.2 cm) each box' },
@@ -49,7 +53,7 @@ describe('Issue #32: "in" abbreviation should require a period', () => {
                 '2023 in London',
             ];
 
-            testCases.forEach(text => {
+            testCases.forEach((text) => {
                 expect(convertText(text)).toBe(text);
             });
         });
@@ -62,7 +66,7 @@ describe('Issue #32: "in" abbreviation should require a period', () => {
                 'Growth of 20 in April',
             ];
 
-            testCases.forEach(text => {
+            testCases.forEach((text) => {
                 expect(convertText(text)).toBe(text);
             });
         });
@@ -118,7 +122,8 @@ describe('Issue #32: "in" abbreviation should require a period', () => {
 
     describe('Edge cases and DOM processing', () => {
         test('handles DOM nodes correctly with preposition "in"', () => {
-            document.body.innerHTML = '<p>In May 2025 in California, roughly 32% of customers\' fares went toward covering</p>';
+            document.body.innerHTML =
+                "<p>In May 2025 in California, roughly 32% of customers' fares went toward covering</p>";
             const root = document.querySelector('p');
             const originalText = root.textContent;
             processNode(root);

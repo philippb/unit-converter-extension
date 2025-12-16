@@ -67,7 +67,11 @@ describe('Issue #10: Negative Fahrenheit Temperature Conversion', () => {
             expect(text).toContain(input);
 
             // Should have a negative Celsius conversion
-            expect(text).toMatch(new RegExp(`${input.replace(/[°()]/g, '\\$&')}\\s*\\(\\s*-\\d+(?:\\.\\d{1,2})?\\s*°\\s*C\\s*\\)`));
+            expect(text).toMatch(
+                new RegExp(
+                    `${input.replace(/[°()]/g, '\\$&')}\\s*\\(\\s*-\\d+(?:\\.\\d{1,2})?\\s*°\\s*C\\s*\\)`
+                )
+            );
 
             // Verify the conversion is approximately correct (within 0.5 degrees)
             const celsiusMatch = text.match(/-(\d+(?:\.\d+)?)\s*°\s*C/);
@@ -89,13 +93,7 @@ describe('Issue #10: Negative Fahrenheit Temperature Conversion', () => {
     });
 
     test('handles negative Fahrenheit in various formats', () => {
-        const formats = [
-            '-40 F',
-            '-40° F',
-            '-40°F',
-            '-40 degrees F',
-            '-40 Fahrenheit',
-        ];
+        const formats = ['-40 F', '-40° F', '-40°F', '-40 degrees F', '-40 Fahrenheit'];
 
         formats.forEach((format) => {
             const result = convertTemperatureText(format);
@@ -117,7 +115,7 @@ describe('Issue #10: Negative Fahrenheit Temperature Conversion', () => {
         if (negativeMatch) {
             const negativeCelsius = parseFloat(negativeMatch[1]);
             expect(negativeCelsius).toBeLessThan(0);
-            expect(Math.abs(negativeCelsius - (-23.33))).toBeLessThan(0.5);
+            expect(Math.abs(negativeCelsius - -23.33)).toBeLessThan(0.5);
         }
 
         // 10°F should convert to negative Celsius (approximately -12.22°C)
@@ -126,7 +124,7 @@ describe('Issue #10: Negative Fahrenheit Temperature Conversion', () => {
         if (positiveMatch) {
             const positiveCelsius = parseFloat(positiveMatch[1]);
             expect(positiveCelsius).toBeLessThan(0);
-            expect(Math.abs(positiveCelsius - (-12.22))).toBeLessThan(0.5);
+            expect(Math.abs(positiveCelsius - -12.22)).toBeLessThan(0.5);
         }
     });
 });

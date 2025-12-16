@@ -49,10 +49,7 @@ function convertLengthText(text) {
         'giu'
     );
 
-    if (
-        INCH_SYMBOLS.split('').some((sym) => converted.includes(sym)) ||
-        converted.includes("''")
-    ) {
+    if (INCH_SYMBOLS.split('').some((sym) => converted.includes(sym)) || converted.includes("''")) {
         converted = converted.replace(dimensionRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];
@@ -87,10 +84,7 @@ function convertLengthText(text) {
         });
     }
 
-    if (
-        INCH_SYMBOLS.split('').some((sym) => converted.includes(sym)) ||
-        converted.includes("''")
-    ) {
+    if (INCH_SYMBOLS.split('').some((sym) => converted.includes(sym)) || converted.includes("''")) {
         converted = converted.replace(inchesSymbolRegex, function () {
             const args = Array.from(arguments);
             const match = args[0];

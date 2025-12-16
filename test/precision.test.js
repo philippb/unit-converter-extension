@@ -7,10 +7,7 @@ const {
     computeDecimalPlaces,
     inferResolutionFromParsedMeasurement,
 } = require('../src/utils/precision.js');
-const {
-    LENGTH_INCH_TO_METERS,
-    LENGTH_FOOT_TO_METERS,
-} = require('../src/utils/constants.js');
+const { LENGTH_INCH_TO_METERS, LENGTH_FOOT_TO_METERS } = require('../src/utils/constants.js');
 
 describe('Precision inference helpers', () => {
     test('resolutionStepOfValueString handles decimals, fractions, and unicode', () => {
