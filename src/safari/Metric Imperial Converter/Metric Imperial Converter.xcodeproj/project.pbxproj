@@ -30,12 +30,10 @@
 		17446ED02D89EB5500F06D44 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17446E8F2D89EB5500F06D44 /* SafariWebExtensionHandler.swift */; };
 		17446ED12D89EB5500F06D44 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17446E8F2D89EB5500F06D44 /* SafariWebExtensionHandler.swift */; };
 		17446EE82D89EB5500F06D44 /* regex.txt in Resources */ = {isa = PBXBuildFile; fileRef = 17446EE32D89EB5500F06D44 /* regex.txt */; };
-		17446EE92D89EB5500F06D44 /* safari in Resources */ = {isa = PBXBuildFile; fileRef = 17446EE42D89EB5500F06D44 /* safari */; };
 		17446EEA2D89EB5500F06D44 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 17446EE52D89EB5500F06D44 /* icons */; };
 		17446EEB2D89EB5500F06D44 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 17446EE62D89EB5500F06D44 /* manifest.json */; };
 		17446EEC2D89EB5500F06D44 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = 17446EE72D89EB5500F06D44 /* content.js */; };
 		17446EED2D89EB5500F06D44 /* regex.txt in Resources */ = {isa = PBXBuildFile; fileRef = 17446EE32D89EB5500F06D44 /* regex.txt */; };
-		17446EEE2D89EB5500F06D44 /* safari in Resources */ = {isa = PBXBuildFile; fileRef = 17446EE42D89EB5500F06D44 /* safari */; };
 		17446EEF2D89EB5500F06D44 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 17446EE52D89EB5500F06D44 /* icons */; };
 		17446EF02D89EB5500F06D44 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 17446EE62D89EB5500F06D44 /* manifest.json */; };
 		17446EF12D89EB5500F06D44 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = 17446EE72D89EB5500F06D44 /* content.js */; };
@@ -108,7 +106,6 @@
 		17446EC22D89EB5500F06D44 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		17446EC32D89EB5500F06D44 /* Metric Imperial Converter.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Metric Imperial Converter.entitlements"; sourceTree = "<group>"; };
 		17446EE32D89EB5500F06D44 /* regex.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = regex.txt; path = ../../../regex.txt; sourceTree = "<group>"; };
-		17446EE42D89EB5500F06D44 /* safari */ = {isa = PBXFileReference; lastKnownFileType = folder; name = safari; path = ../..; sourceTree = "<group>"; };
 		17446EE52D89EB5500F06D44 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = ../../../icons; sourceTree = "<group>"; };
 		17446EE62D89EB5500F06D44 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = ../../../manifest.json; sourceTree = "<group>"; };
 		17446EE72D89EB5500F06D44 /* content.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = content.js; path = ../../../content.js; sourceTree = "<group>"; };
@@ -244,7 +241,6 @@
 			isa = PBXGroup;
 			children = (
 				17446EE32D89EB5500F06D44 /* regex.txt */,
-				17446EE42D89EB5500F06D44 /* safari */,
 				17446EE52D89EB5500F06D44 /* icons */,
 				17446EE62D89EB5500F06D44 /* manifest.json */,
 				17446EE72D89EB5500F06D44 /* content.js */,
@@ -416,7 +412,6 @@
 			files = (
 				17446EF02D89EB5500F06D44 /* manifest.json in Resources */,
 				17446EEF2D89EB5500F06D44 /* icons in Resources */,
-				17446EEE2D89EB5500F06D44 /* safari in Resources */,
 				17446EED2D89EB5500F06D44 /* regex.txt in Resources */,
 				17446EF12D89EB5500F06D44 /* content.js in Resources */,
 			);
@@ -428,7 +423,6 @@
 			files = (
 				17446EEB2D89EB5500F06D44 /* manifest.json in Resources */,
 				17446EEA2D89EB5500F06D44 /* icons in Resources */,
-				17446EE92D89EB5500F06D44 /* safari in Resources */,
 				17446EE82D89EB5500F06D44 /* regex.txt in Resources */,
 				17446EEC2D89EB5500F06D44 /* content.js in Resources */,
 			);
