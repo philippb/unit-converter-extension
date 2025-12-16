@@ -9,7 +9,7 @@
  * not as feet.
  */
 
-const { processNode } = require('../../src/content.js');
+const { processNode } = require('../../../src/content.js');
 
 describe('Issue #15: Double apostrophe inch symbol on Tesla page', () => {
     beforeEach(() => {

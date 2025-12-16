@@ -12,7 +12,7 @@
  * The leading quote should have a leading whitespace and also not have a number leading.
  */
 
-const { convertText, processNode } = require('../../src/content.js');
+const { convertText, processNode } = require('../../../src/content.js');
 
 describe("GitHub Issue #12: Don't convert things in quotes", () => {
     describe('Should NOT convert quoted non-measurements', () => {

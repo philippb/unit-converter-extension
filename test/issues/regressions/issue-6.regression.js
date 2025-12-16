@@ -13,7 +13,7 @@
  * after a currency amount where it's clearly being used as a preposition.
  */
 
-const { processNode } = require('../../src/content.js');
+const { processNode } = require('../../../src/content.js');
 
 describe('Issue #6: Currency context should prevent "in" conversion', () => {
     beforeEach(() => {

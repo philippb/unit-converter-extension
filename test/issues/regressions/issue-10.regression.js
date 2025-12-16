@@ -11,7 +11,7 @@
  *   -40°F (-40°C) to 140° F (60.0°C)
  */
 
-const { processNode, convertTemperatureText } = require('../../src/content.js');
+const { processNode, convertTemperatureText } = require('../../../src/content.js');
 
 describe('Issue #10: Negative Fahrenheit Temperature Conversion', () => {
     beforeEach(() => {

@@ -9,7 +9,7 @@
  * - "zip": "71671" (1.82 km) - incorrectly converted
  */
 
-const { processNode } = require('../../src/content.js');
+const { processNode } = require('../../../src/content.js');
 
 describe("GitHub Issue #14 - Don't convert in code (CodeMirror)", () => {
     beforeEach(() => {

@@ -1,4 +1,4 @@
-const { convertText, processNode } = require('../../src/content.js');
+const { convertText, processNode } = require('../../../src/content.js');
 
 /**
  * Issue #32: conversion of 'in' should only happen when abbreviated with a period

@@ -25,6 +25,14 @@
 
 - Always run `npm run lint` before finishing work and confirm it succeeds (warnings are OK but fix failing rules if they surface). This keeps Husky hooks and CI from rejecting the branch.
 
+## Agent Workflow Tips
+
+- Check `gh issue list` early to understand open work and match regression tests when, as here, each open issue already has a Jest spec under `test/issues/issue-<number>.test.js`.
+- Issue regression suites now live under `test/issues/regressions/issue-<number>.regression.js` and are explicitly executed via the `test/issues/issue-regressions.test.js` aggregator.
+- After modifying code, run `npm test` and `npm run lint` (in that order) to validate the full suite plus ESLint before reporting completion; mention both commands in issue comments or PRs as evidence of verification.
+- Use the plan tool for any task that involves more than a couple of edits, and remember that `apply_patch` is preferred for single-file refactors.
+- Keep commits descriptive (imperative mood) and note issue references when applicable; run `npm run format` only when needed to avoid noise.
+
 ## Coding Style & Naming Conventions
 
 - Tools: ESLint (`eslint:recommended` + `prettier`) and Prettier; warnings for `no-console` and `no-unused-vars`.

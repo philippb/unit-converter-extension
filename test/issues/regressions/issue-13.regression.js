@@ -1,4 +1,4 @@
-const { convertText, processNode } = require('../../src/content.js');
+const { convertText, processNode } = require('../../../src/content.js');
 
 describe('Issue #13: AWG wire gauge support', () => {
     describe('Basic AWG conversions', () => {

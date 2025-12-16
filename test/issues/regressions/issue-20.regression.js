@@ -13,7 +13,7 @@
  * both dimensions should be converted individually and shown as "valueAxvalueB cm"
  */
 
-const { convertText } = require('../../src/converter.js');
+const { convertText } = require('../../../src/converter.js');
 
 describe('Issue #20: Shared inch dimension conversions (AxB")', () => {
     test('converts 6×9" to show both dimensions', () => {

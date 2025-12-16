@@ -1,4 +1,4 @@
-const { processNode } = require('../../src/content.js');
+const { processNode } = require('../../../src/content.js');
 
 describe('Issue #17: Only convert free standing numbers', () => {
     beforeEach(() => {

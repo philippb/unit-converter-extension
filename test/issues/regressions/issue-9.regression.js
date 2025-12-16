@@ -1,4 +1,4 @@
-const { processNode } = require('../../src/content.js');
+const { processNode } = require('../../../src/content.js');
 
 describe('Issue #9: Exclude content in <code>', () => {
     beforeEach(() => {
