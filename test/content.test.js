@@ -3,11 +3,12 @@ const {
     processElement,
     hasRelevantUnits,
     isEditableContext,
-    convertToDecimal,
     createRegexFromTemplate,
     convertWeightText,
     parseMeasurementMatch,
 } = require('../src/content.js');
+
+const { convertToDecimal } = require('../src/parsing/numbers.js');
 
 describe('Basic Regex Tests', () => {
     test('test core regex', () => {

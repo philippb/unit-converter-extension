@@ -1,0 +1,95 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Units registry unit registry structure matches snapshot 1`] = `
+{
+  "UNITS": {
+    "AREA": {
+      "ACRES": {
+        "PRIMARY": "acre(?:s)?",
+      },
+      "SQ_FEET": {
+        "PRIMARY": "square\\s+feet|square\\s+foot|sq\\.?\\s*ft\\.?|sq\\.?\\s*feet|sq\\.?\\s*foot|sq\\.?\\s*ft|sqft|ft\\s*(?:\\^?2|²)|ft2",
+      },
+      "SQ_INCHES": {
+        "PRIMARY": "square\\s+inches|square\\s+inch|sq\\.?\\s*in\\.?|sq\\.?\\s*inch(?:es)?|sq\\.?\\s*in|in\\s*(?:\\^?2|²)|in2",
+      },
+      "SQ_MILES": {
+        "PRIMARY": "square\\s+miles|square\\s+mile|sq\\.?\\s*mi\\.?|sq\\.?\\s*mile(?:s)?|sq\\.?\\s*mi|mi\\s*(?:\\^?2|²)|mi2",
+      },
+      "SQ_YARDS": {
+        "PRIMARY": "square\\s+yards|square\\s+yard|sq\\.?\\s*yd\\.?|sq\\.?\\s*yard(?:s)?|sq\\.?\\s*yd|yd\\s*(?:\\^?2|²)|yd2",
+      },
+    },
+    "AWG": {
+      "PRIMARY": "awg",
+    },
+    "LENGTH": {
+      "FEET_INCHES": {
+        "PRIMARY": "'|′|’|feet|foot|ft",
+        "SECONDARY": ""|″|”|inches|inch|in\\.|in",
+      },
+      "MILES": {
+        "PRIMARY": "miles|mile|mi",
+      },
+      "YARDS": {
+        "PRIMARY": "yards|yard|yd",
+      },
+    },
+    "LIQUID": {
+      "CUPS": {
+        "PRIMARY": "cups|cup|c",
+      },
+      "CUPS_FLOZ": {
+        "PRIMARY": "cups|cup|c",
+        "SECONDARY": "fluid\\s+ounces|fluid\\s+ounce|fl\\.?\\s*oz",
+      },
+      "FLOZ": {
+        "PRIMARY": "fluid\\s+ounces|fluid\\s+ounce|fl\\.?\\s*oz",
+      },
+      "GALLONS": {
+        "PRIMARY": "gallons|gallon|gal",
+      },
+      "GALLONS_QUARTS": {
+        "PRIMARY": "gallons|gallon|gal",
+        "SECONDARY": "quarts|quart|qt",
+      },
+      "PINTS": {
+        "PRIMARY": "pints|pint|pt",
+      },
+      "QUARTS": {
+        "PRIMARY": "quarts|quart|qt",
+      },
+      "TBSP": {
+        "PRIMARY": "tablespoons|tablespoon|tbsp|tbs|tb",
+      },
+      "TBSP_TSP": {
+        "PRIMARY": "tablespoons|tablespoon|tbsp|tbs|tb",
+        "SECONDARY": "teaspoons|teaspoon|tsp|ts",
+      },
+      "TSP": {
+        "PRIMARY": "teaspoons|teaspoon|tsp|ts",
+      },
+    },
+    "TIME_ZONE": {
+      "ABBREVIATIONS": {
+        "CDT": "CDT",
+        "CST": "CST",
+        "EDT": "EDT",
+        "EST": "EST",
+        "GMT": "GMT",
+        "MDT": "MDT",
+        "MST": "MST",
+        "PDT": "PDT",
+        "PST": "PST",
+        "UTC": "UTC",
+      },
+      "OFFSET": "GMT|UTC",
+    },
+    "WEIGHT": {
+      "PRIMARY": "pounds|pound|lbs|lb",
+      "SECONDARY": "ounces|ounce|oz",
+    },
+  },
+  "UNIT_HINT_PATTERN": ""|'|CDT|CST|EDT|EST|GMT|MDT|MST|PDT|PST|UTC|acre(?:s)?|awg|cup|cups|feet|fl\\.?\\s*oz|fluid\\s+ounce|fluid\\s+ounces|foot|ft|ft2|ft\\s*(?:\\^?2|²)|gal|gallon|gallons|in|in2|in\\.|in\\s*(?:\\^?2|²)|inch|inches|lb|lbs|mi|mi2|mi\\s*(?:\\^?2|²)|mile|miles|ounce|ounces|oz|pint|pints|pound|pounds|pt|qt|quart|quarts|sq\\.?\\s*feet|sq\\.?\\s*foot|sq\\.?\\s*ft|sq\\.?\\s*ft\\.?|sq\\.?\\s*in|sq\\.?\\s*in\\.?|sq\\.?\\s*inch(?:es)?|sq\\.?\\s*mi|sq\\.?\\s*mi\\.?|sq\\.?\\s*mile(?:s)?|sq\\.?\\s*yard(?:s)?|sq\\.?\\s*yd|sq\\.?\\s*yd\\.?|sqft|square\\s+feet|square\\s+foot|square\\s+inch|square\\s+inches|square\\s+mile|square\\s+miles|square\\s+yard|square\\s+yards|tablespoon|tablespoons|tb|tbs|tbsp|teaspoon|teaspoons|ts|tsp|yard|yards|yd|yd2|yd\\s*(?:\\^?2|²)|’|”|′|″",
+}
+`;
