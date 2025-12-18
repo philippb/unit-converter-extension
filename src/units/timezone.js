@@ -1,5 +1,6 @@
 const { TIME_ZONE_OFFSETS } = require('../utils/constants.js');
 const { RE_TIME_GLOBAL } = require('../parsing/regex.js');
+const { buildInsertedParenthetical } = require('../utils/insertMarkers.js');
 
 const TARGET_TIMEZONE = 'PST';
 const TARGET_TIMEZONE_OFFSET = -8;
@@ -60,7 +61,7 @@ function convertTimeZone(timeStr, sourceTimezone, sourceOffset = null) {
     return `${targetHours}${formattedMinutes > 0 && formattedMinutes !== '00' ? `:${formattedMinutes}` : ''} ${targetAmPm}`;
 }
 
-function convertTimeZoneText(text) {
+function convertTimeZoneText(text, options = {}) {
     let converted = text;
     const timeRegex = RE_TIME_GLOBAL;
 
@@ -95,7 +96,8 @@ function convertTimeZoneText(text) {
         }
 
         const convertedTime = convertTimeZone(time, tz, offset);
-        return `${match} (${convertedTime} ${TARGET_TIMEZONE})`;
+        const formatted = `${convertedTime} ${TARGET_TIMEZONE}`;
+        return `${match} ${buildInsertedParenthetical(formatted, options)}`;
     });
 
     return converted;

@@ -86,7 +86,9 @@ function main() {
             console.error(`Baseline: ${baseline.toFixed(2)} ms, Current: ${avg.toFixed(2)} ms`);
             process.exit(1);
         } else {
-            console.log(`\nPerformance check passed: ${changePercent.toFixed(2)}% change (threshold: ${threshold}%)`);
+            console.log(
+                `\nPerformance check passed: ${changePercent.toFixed(2)}% change (threshold: ${threshold}%)`
+            );
         }
     } else {
         // Just output the benchmark result

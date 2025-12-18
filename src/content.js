@@ -74,9 +74,12 @@ const {
     TARGET_TIMEZONE,
     TARGET_TIMEZONE_OFFSET,
 } = require('./units/timezone.js');
-const { convertText, hasRelevantUnits } = require('./converter.js');
+const { convertText, convertTextWithInsertMarkers, hasRelevantUnits } = require('./converter.js');
 const exclusionContext = require('./exclusions/context.js');
 const { shouldExcludeMatch } = require('./exclusions/patterns.js');
+const { INSERT_START, INSERT_END, stripInsertMarkers } = require('./utils/insertMarkers.js');
+
+const WHITESPACE_ONLY_RE = /^\s*$/;
 
 function buildUnitDataFromSpecs(specs) {
     const hintPieces = new Set();
@@ -159,6 +162,34 @@ function getPluginName() {
     return 'Imperial to Metric';
 }
 
+let cachedPluginName = null;
+function getCachedPluginName() {
+    if (cachedPluginName) return cachedPluginName;
+    cachedPluginName = getPluginName();
+    return cachedPluginName;
+}
+
+const styledDocs = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+function ensureInsertedStyles(doc) {
+    if (!doc) return;
+    if (styledDocs && styledDocs.has(doc)) return;
+    if (doc.getElementById && doc.getElementById('mic-inserted-style')) {
+        if (styledDocs) styledDocs.add(doc);
+        return;
+    }
+
+    const style = doc.createElement ? doc.createElement('style') : null;
+    if (!style) return;
+    style.id = 'mic-inserted-style';
+    style.textContent = `.mic-inserted {\n  text-decoration-line: underline !important;\n  text-decoration-style: dotted !important;\n  text-decoration-color: currentColor !important;\n}`;
+
+    const parent = doc.head || doc.documentElement || doc.body;
+    if (parent && parent.appendChild) {
+        parent.appendChild(style);
+        if (styledDocs) styledDocs.add(doc);
+    }
+}
+
 // Helper to style inserted conversions with underline + tooltip
 function createInsertedSpan(text, doc) {
     const d = doc || (typeof document !== 'undefined' ? document : null);
@@ -177,12 +208,8 @@ function createInsertedSpan(text, doc) {
               },
           };
     span.className = 'mic-inserted';
-    // Inline styles to avoid relying on site CSS
-    span.style.textDecorationLine = 'underline';
-    span.style.textDecorationStyle = 'dotted';
-    // Match underline color to surrounding text color
-    span.style.textDecorationColor = 'currentColor';
-    span.title = `Inserted by ${getPluginName()} extension`;
+    ensureInsertedStyles(d);
+    span.title = `Inserted by ${getCachedPluginName()} extension`;
     span.textContent = text;
     return span;
 }
@@ -198,14 +225,19 @@ function processElement(node) {
 
     function processTextNode(textNode) {
         if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
-        const originalText = textNode.textContent;
+        const originalText = textNode.nodeValue;
+
+        // Skip text nodes that do not contain relevant number+unit hints
+        if (!hasRelevantUnits(originalText)) {
+            return;
+        }
 
         // Fast pre-filter: only process text that might contain relevant units
         // Skip if the next significant sibling (ignoring whitespace-only text nodes)
         // is one of our inserted spans. This prevents double-processing the same
         // text node content after we've already added a following "(… )" span.
         let ns = textNode.nextSibling;
-        while (ns && ns.nodeType === Node.TEXT_NODE && /^\s*$/.test(ns.textContent)) {
+        while (ns && ns.nodeType === Node.TEXT_NODE && WHITESPACE_ONLY_RE.test(ns.nodeValue)) {
             ns = ns.nextSibling;
         }
         if (
@@ -217,88 +249,70 @@ function processElement(node) {
             return;
         }
 
-        // Skip text nodes that do not contain relevant number+unit hints
-        if (!hasRelevantUnits(originalText)) {
+        const markedText = convertTextWithInsertMarkers(originalText);
+        if (originalText === markedText) {
             return;
         }
 
-        const newText = convertText(originalText);
-        if (originalText === newText) {
-            return;
-        }
-
-        // Build a fragment that preserves original text and wraps inserted
-        // conversions like " (12.7 cm)" in a styled span.
+        // Build a fragment that preserves text and wraps inserted conversions
+        // like " (12.7 cm)" in a styled span.
         const doc =
             (textNode && textNode.ownerDocument) ||
             (typeof document !== 'undefined' ? document : null);
         const frag = doc ? doc.createDocumentFragment() : null;
-        let i = 0; // index in originalText
-        let j = 0; // index in newText
-        let buffer = '';
-
-        const isWhitespace = (ch) => /\s/.test(ch || '');
-
-        while (j < newText.length) {
-            if (i < originalText.length && originalText[i] === newText[j]) {
-                buffer += newText[j];
-                i += 1;
-                j += 1;
-                continue;
-            }
-
-            // Mismatch indicates inserted conversion. We expect optional whitespace then "(… )".
-            if (newText[j] === '(' || (isWhitespace(newText[j]) && newText[j + 1] === '(')) {
-                // Flush buffered matching text
-                if (buffer && frag && doc) {
-                    frag.appendChild(doc.createTextNode(buffer));
-                    buffer = '';
-                }
-
-                // If there is leading whitespace before '(', append it as plain text
-                while (isWhitespace(newText[j]) && newText[j + 1] === '(') {
-                    if (frag && doc) frag.appendChild(doc.createTextNode(newText[j]));
-                    j += 1;
-                }
-
-                // Now newText[j] should be '('
-                if (newText[j] !== '(') {
-                    // Not our pattern; fallback
-                    buffer += newText[j];
-                    j += 1;
-                    continue;
-                }
-
-                // Find the end of the inserted parenthetical
-                const closeIdx = newText.indexOf(')', j + 1);
-                if (closeIdx === -1) {
-                    // Fallback: no closing paren; append the rest as text
-                    buffer += newText.slice(j);
-                    break;
-                }
-                const insertedText = newText.slice(j, closeIdx + 1);
-                if (frag) {
-                    frag.appendChild(createInsertedSpan(insertedText, doc));
-                }
-                // Advance j past the inserted text; i stays the same
-                j = closeIdx + 1;
-                continue;
-            }
-
-            // Fallback: if not a recognized insertion, move forward conservatively
-            buffer += newText[j];
-            j += 1;
-        }
-
-        if (buffer && frag && doc) {
-            frag.appendChild(doc.createTextNode(buffer));
-        }
-        if (frag) {
-            textNode.replaceWith(frag);
-        } else {
+        if (!frag || !doc) {
             // Extremely defensive fallback for non-browser contexts
-            textNode.textContent = newText;
+            textNode.nodeValue = stripInsertMarkers(markedText);
+            return;
         }
+
+        const startMarker = INSERT_START;
+        const endMarker = INSERT_END;
+        let pos = 0;
+
+        let startIdx;
+        while ((startIdx = markedText.indexOf(startMarker, pos)) !== -1) {
+            const endIdx = markedText.indexOf(endMarker, startIdx + 1);
+            if (endIdx === -1) {
+                // Should not happen; fall back to plain text without markers
+                frag.appendChild(doc.createTextNode(stripInsertMarkers(markedText.slice(pos))));
+                pos = markedText.length;
+                break;
+            }
+
+            const openParenIdx = startIdx - 1;
+            const closeParenIdx = endIdx + 1;
+            if (
+                openParenIdx < pos ||
+                markedText[openParenIdx] !== '(' ||
+                closeParenIdx >= markedText.length ||
+                markedText[closeParenIdx] !== ')'
+            ) {
+                // Unexpected marker placement; fall back to plain text without markers
+                frag.appendChild(doc.createTextNode(stripInsertMarkers(markedText.slice(pos))));
+                pos = markedText.length;
+                break;
+            }
+
+            const before = markedText.slice(pos, openParenIdx);
+            if (before) {
+                frag.appendChild(doc.createTextNode(before));
+            }
+
+            const insertedContent = markedText.slice(startIdx + 1, endIdx);
+            frag.appendChild(createInsertedSpan(`(${insertedContent})`, doc));
+
+            pos = closeParenIdx + 1;
+        }
+
+        if (pos < markedText.length) {
+            const tail = markedText.slice(pos);
+            if (tail) {
+                frag.appendChild(doc.createTextNode(tail));
+            }
+        }
+
+        textNode.replaceWith(frag);
     }
 
     if (!node) return;
@@ -312,27 +326,29 @@ function processElement(node) {
         return;
     }
 
+    let current = node.firstChild;
     const stack = [];
-    for (let i = node.childNodes.length - 1; i >= 0; i--) {
-        stack.push(node.childNodes[i]);
-    }
 
-    while (stack.length) {
-        const current = stack.pop();
-        if (!current) continue;
-
+    while (current) {
         if (current.nodeType === Node.ELEMENT_NODE) {
             if (exclusionContext.isExcludedElement(current)) {
-                continue;
+                current = current.nextSibling;
+            } else if (current.firstChild) {
+                if (current.nextSibling) stack.push(current.nextSibling);
+                current = current.firstChild;
+            } else {
+                current = current.nextSibling;
             }
-            for (let i = current.childNodes.length - 1; i >= 0; i--) {
-                stack.push(current.childNodes[i]);
-            }
-            continue;
+        } else if (current.nodeType === Node.TEXT_NODE) {
+            const next = current.nextSibling;
+            processTextNode(current);
+            current = next;
+        } else {
+            current = current.nextSibling;
         }
 
-        if (current.nodeType === Node.TEXT_NODE) {
-            processTextNode(current);
+        while (!current && stack.length) {
+            current = stack.pop();
         }
     }
 }

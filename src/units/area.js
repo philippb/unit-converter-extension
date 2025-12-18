@@ -10,12 +10,13 @@ const { convertToDecimal } = require('../parsing/numbers.js');
 const { formatAreaMeasurement } = require('../formatting/units.js');
 const { inferResolutionFromValue } = require('../utils/precision.js');
 const { shouldExcludeMatch } = require('../exclusions/patterns.js');
+const { buildInsertedParenthetical } = require('../utils/insertMarkers.js');
 
 function shouldSkipMatch(match, offset, source) {
     return shouldExcludeMatch({ text: source, matchStart: offset, match });
 }
 
-function convertAreaText(text) {
+function convertAreaText(text, options = {}) {
     let converted = text;
     const lower = converted.toLowerCase();
 
@@ -77,7 +78,8 @@ function convertAreaText(text) {
                 if (Number.isNaN(n)) return match;
                 const sqm = n * factor;
                 const resolutionSquareMeters = inferResolutionFromValue(raw, factor);
-                return `${match} (${formatAreaMeasurement(sqm, { resolutionSquareMeters })})`;
+                const formatted = formatAreaMeasurement(sqm, { resolutionSquareMeters });
+                return `${match} ${buildInsertedParenthetical(formatted, options)}`;
             });
         }
     }
