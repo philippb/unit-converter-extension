@@ -44,6 +44,13 @@ describe('Issue #13: AWG wire gauge support', () => {
             expect(output).toContain('12 AWG (2.053 mm)');
             expect(output).toContain('14 AWG (1.628 mm)');
         });
+
+        test('converts inline sentence with mixed case AWG mentions', () => {
+            const input = 'Use cable of 4 AWG or 6 awg for this';
+            const output = convertText(input);
+            expect(output).toContain('4 AWG (5.189 mm)');
+            expect(output).toContain('6 awg (4.115 mm)');
+        });
     });
 
     describe('AWG case variations', () => {
@@ -71,6 +78,19 @@ describe('Issue #13: AWG wire gauge support', () => {
             const root = document.querySelector('p');
             processNode(root);
             expect(document.body.textContent).toContain('12 AWG (2.053 mm)');
+        });
+
+        test('converts AWG inside GitHub comment block', () => {
+            document.body.innerHTML = `
+                <div class="comment-body markdown-body">
+                    <code>test/issues/issue-13.test.js</code>
+                    <p dir="auto">Use cable of 4 AWG or 6 awg for this</p>
+                </div>
+            `;
+            const root = document.querySelector('.comment-body');
+            processNode(root);
+            expect(root.textContent).toContain('4 AWG (5.189 mm)');
+            expect(root.textContent).toContain('6 awg (4.115 mm)');
         });
     });
 });
