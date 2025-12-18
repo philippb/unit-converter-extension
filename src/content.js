@@ -196,20 +196,15 @@ function processElement(node) {
         return;
     }
 
-    // For element nodes, check entire textContent first to skip whole subtree if no units
-    if (node.nodeType === Node.ELEMENT_NODE) {
-        // Process children; text-node fast paths and SKIP_TAGS keep this efficient
-        for (const childNode of node.childNodes) {
-            processElement(childNode);
-        }
-    } else if (node.nodeType === Node.TEXT_NODE) {
-        const originalText = node.textContent;
+    function processTextNode(textNode) {
+        if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
+        const originalText = textNode.textContent;
 
         // Fast pre-filter: only process text that might contain relevant units
         // Skip if the next significant sibling (ignoring whitespace-only text nodes)
         // is one of our inserted spans. This prevents double-processing the same
         // text node content after we've already added a following "(… )" span.
-        let ns = node.nextSibling;
+        let ns = textNode.nextSibling;
         while (ns && ns.nodeType === Node.TEXT_NODE && /^\s*$/.test(ns.textContent)) {
             ns = ns.nextSibling;
         }
@@ -227,85 +222,117 @@ function processElement(node) {
             return;
         }
 
-        {
-            const newText = convertText(originalText);
-            if (originalText !== newText) {
-                // Build a fragment that preserves original text and wraps inserted
-                // conversions like " (12.7 cm)" in a styled span.
-                const doc =
-                    (node && node.ownerDocument) ||
-                    (typeof document !== 'undefined' ? document : null);
-                const frag = doc ? doc.createDocumentFragment() : null;
-                let i = 0; // index in originalText
-                let j = 0; // index in newText
-                let buffer = '';
+        const newText = convertText(originalText);
+        if (originalText === newText) {
+            return;
+        }
 
-                const isWhitespace = (ch) => /\s/.test(ch || '');
+        // Build a fragment that preserves original text and wraps inserted
+        // conversions like " (12.7 cm)" in a styled span.
+        const doc =
+            (textNode && textNode.ownerDocument) ||
+            (typeof document !== 'undefined' ? document : null);
+        const frag = doc ? doc.createDocumentFragment() : null;
+        let i = 0; // index in originalText
+        let j = 0; // index in newText
+        let buffer = '';
 
-                while (j < newText.length) {
-                    if (i < originalText.length && originalText[i] === newText[j]) {
-                        buffer += newText[j];
-                        i += 1;
-                        j += 1;
-                        continue;
-                    }
+        const isWhitespace = (ch) => /\s/.test(ch || '');
 
-                    // Mismatch indicates inserted conversion. We expect optional whitespace then "(… )".
-                    if (
-                        newText[j] === '(' ||
-                        (isWhitespace(newText[j]) && newText[j + 1] === '(')
-                    ) {
-                        // Flush buffered matching text
-                        if (buffer && frag && doc) {
-                            frag.appendChild(doc.createTextNode(buffer));
-                            buffer = '';
-                        }
+        while (j < newText.length) {
+            if (i < originalText.length && originalText[i] === newText[j]) {
+                buffer += newText[j];
+                i += 1;
+                j += 1;
+                continue;
+            }
 
-                        // If there is leading whitespace before '(', append it as plain text
-                        while (isWhitespace(newText[j]) && newText[j + 1] === '(') {
-                            if (frag && doc) frag.appendChild(doc.createTextNode(newText[j]));
-                            j += 1;
-                        }
+            // Mismatch indicates inserted conversion. We expect optional whitespace then "(… )".
+            if (newText[j] === '(' || (isWhitespace(newText[j]) && newText[j + 1] === '(')) {
+                // Flush buffered matching text
+                if (buffer && frag && doc) {
+                    frag.appendChild(doc.createTextNode(buffer));
+                    buffer = '';
+                }
 
-                        // Now newText[j] should be '('
-                        if (newText[j] !== '(') {
-                            // Not our pattern; fallback
-                            buffer += newText[j];
-                            j += 1;
-                            continue;
-                        }
-
-                        // Find the end of the inserted parenthetical
-                        const closeIdx = newText.indexOf(')', j + 1);
-                        if (closeIdx === -1) {
-                            // Fallback: no closing paren; append the rest as text
-                            buffer += newText.slice(j);
-                            break;
-                        }
-                        const insertedText = newText.slice(j, closeIdx + 1);
-                        if (frag) {
-                            frag.appendChild(createInsertedSpan(insertedText, doc));
-                        }
-                        // Advance j past the inserted text; i stays the same
-                        j = closeIdx + 1;
-                        continue;
-                    }
-
-                    // Fallback: if not a recognized insertion, move forward conservatively
-                    buffer += newText[j];
+                // If there is leading whitespace before '(', append it as plain text
+                while (isWhitespace(newText[j]) && newText[j + 1] === '(') {
+                    if (frag && doc) frag.appendChild(doc.createTextNode(newText[j]));
                     j += 1;
                 }
 
-                if (buffer && frag && doc) {
-                    frag.appendChild(doc.createTextNode(buffer));
+                // Now newText[j] should be '('
+                if (newText[j] !== '(') {
+                    // Not our pattern; fallback
+                    buffer += newText[j];
+                    j += 1;
+                    continue;
                 }
+
+                // Find the end of the inserted parenthetical
+                const closeIdx = newText.indexOf(')', j + 1);
+                if (closeIdx === -1) {
+                    // Fallback: no closing paren; append the rest as text
+                    buffer += newText.slice(j);
+                    break;
+                }
+                const insertedText = newText.slice(j, closeIdx + 1);
                 if (frag) {
-                    node.replaceWith(frag);
-                } else {
-                    // Extremely defensive fallback for non-browser contexts
-                    node.textContent = newText;
+                    frag.appendChild(createInsertedSpan(insertedText, doc));
                 }
+                // Advance j past the inserted text; i stays the same
+                j = closeIdx + 1;
+                continue;
             }
+
+            // Fallback: if not a recognized insertion, move forward conservatively
+            buffer += newText[j];
+            j += 1;
+        }
+
+        if (buffer && frag && doc) {
+            frag.appendChild(doc.createTextNode(buffer));
+        }
+        if (frag) {
+            textNode.replaceWith(frag);
+        } else {
+            // Extremely defensive fallback for non-browser contexts
+            textNode.textContent = newText;
+        }
+    }
+
+    if (!node) return;
+
+    if (node.nodeType === Node.TEXT_NODE) {
+        processTextNode(node);
+        return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+        return;
+    }
+
+    const stack = [];
+    for (let i = node.childNodes.length - 1; i >= 0; i--) {
+        stack.push(node.childNodes[i]);
+    }
+
+    while (stack.length) {
+        const current = stack.pop();
+        if (!current) continue;
+
+        if (current.nodeType === Node.ELEMENT_NODE) {
+            if (exclusionContext.isExcludedElement(current)) {
+                continue;
+            }
+            for (let i = current.childNodes.length - 1; i >= 0; i--) {
+                stack.push(current.childNodes[i]);
+            }
+            continue;
+        }
+
+        if (current.nodeType === Node.TEXT_NODE) {
+            processTextNode(current);
         }
     }
 }

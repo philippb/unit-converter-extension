@@ -16,7 +16,7 @@ const SKIP_TAGS = new Set([
     'VAR',
 ]);
 
-const CODE_CLASS_PATTERNS = [
+const CODE_CLASS_PATTERNS = new Set([
     'hljs',
     'highlight',
     'prism',
@@ -26,7 +26,7 @@ const CODE_CLASS_PATTERNS = [
     's-code-block',
     'code-example',
     'md-code-block',
-];
+]);
 const CODE_CLASS_PREFIXES = ['language-', 'lang-', 'cm-', 'CodeMirror'];
 
 function hasCodeRelatedClass(classNames) {
@@ -34,30 +34,29 @@ function hasCodeRelatedClass(classNames) {
     const iterable = typeof classNames === 'string' ? classNames.split(/\s+/) : classNames;
     for (const cls of iterable) {
         if (!cls) continue;
-        if (CODE_CLASS_PATTERNS.includes(cls)) {
+        if (CODE_CLASS_PATTERNS.has(cls)) {
             return true;
         }
-        if (CODE_CLASS_PREFIXES.some((prefix) => cls.startsWith(prefix))) {
-            return true;
+        for (const prefix of CODE_CLASS_PREFIXES) {
+            if (cls.startsWith(prefix)) return true;
         }
     }
     return false;
 }
 
+function isContentEditableElement(node) {
+    if (!node || !node.getAttribute) return false;
+    const attr = node.getAttribute('contenteditable');
+    if (!attr && attr !== '') return false;
+    const normalized = String(attr).trim().toLowerCase();
+    return normalized === '' || normalized === 'true';
+}
+
 function isEditableContext(node) {
     let current = node;
     while (current) {
-        if (current.tagName) {
-            const tag = current.tagName.toUpperCase();
-            if (tag === 'INPUT' || tag === 'TEXTAREA') {
-                return true;
-            }
-        }
-        if (
-            current.getAttribute &&
-            current.getAttribute('contenteditable') &&
-            current.getAttribute('contenteditable').toLowerCase() === 'true'
-        ) {
+        if (current.tagName === 'INPUT' || current.tagName === 'TEXTAREA') return true;
+        if (isContentEditableElement(current)) {
             return true;
         }
         current = current.parentNode;
@@ -74,8 +73,7 @@ function isTextNode(node) {
 function isInSkippableContainer(node) {
     let current = node && isTextNode(node) ? node.parentNode : node;
     while (current) {
-        const tag = current.tagName ? current.tagName.toUpperCase() : null;
-        if (tag && SKIP_TAGS.has(tag)) {
+        if (current.tagName && SKIP_TAGS.has(current.tagName)) {
             return true;
         }
         if (hasCodeRelatedClass(current.classList || current.className)) {
@@ -85,13 +83,28 @@ function isInSkippableContainer(node) {
     }
     return false;
 }
+
+function isExcludedElement(node) {
+    if (!node || !node.tagName) return false;
+    if (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA') return true;
+    if (isContentEditableElement(node)) return true;
+    if (SKIP_TAGS.has(node.tagName)) return true;
+    return hasCodeRelatedClass(node.classList || node.className);
+}
+
 function isExcludedContext(node) {
-    return isEditableContext(node) || isInSkippableContainer(node);
+    let current = node && isTextNode(node) ? node.parentNode : node;
+    while (current) {
+        if (isExcludedElement(current)) return true;
+        current = current.parentNode;
+    }
+    return false;
 }
 
 module.exports = {
     isEditableContext,
     isInSkippableContainer,
     hasCodeRelatedClass,
+    isExcludedElement,
     isExcludedContext,
 };

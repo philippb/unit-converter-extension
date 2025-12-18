@@ -2,6 +2,12 @@ const { UNICODE_FRACTIONS } = require('../utils/constants.js');
 const { convertToDecimal } = require('./numbers.js');
 
 const unitRegexCache = new WeakMap();
+const unitPatternCache = new WeakMap();
+
+const FIRST_VALUE_TOKEN_RE = new RegExp(
+    String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${UNICODE_FRACTIONS}]|[${UNICODE_FRACTIONS}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))`,
+    'u'
+);
 
 function getUnitRegexes(units) {
     let pair = unitRegexCache.get(units);
@@ -15,17 +21,21 @@ function getUnitRegexes(units) {
 }
 
 function extractFirstValueToken(s) {
-    const unicode = UNICODE_FRACTIONS;
-    const re = new RegExp(
-        String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d)\s*[${unicode}]|[${unicode}]|(?:\d{1,3}(?:,\d{3})+|\d)\s*\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+))`,
-        'u'
-    );
-    const m = String(s).match(re);
+    const m = String(s).match(FIRST_VALUE_TOKEN_RE);
     return m ? m[0] : '';
 }
 
+function getUnitSplitRegex(units) {
+    let unitPattern = unitPatternCache.get(units);
+    if (!unitPattern) {
+        unitPattern = new RegExp(`(${units.PRIMARY}|${units.SECONDARY})`, 'i');
+        unitPatternCache.set(units, unitPattern);
+    }
+    return unitPattern;
+}
+
 function parseMeasurementMatch(match, units) {
-    const unitPattern = new RegExp(`(${units.PRIMARY}|${units.SECONDARY})`, 'i');
+    const unitPattern = getUnitSplitRegex(units);
     const parts = match
         .trim()
         .split(unitPattern)

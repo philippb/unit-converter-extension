@@ -14,6 +14,7 @@ function convertAwgToMeters(gaugeValue) {
 
 function convertAwgText(text) {
     if (!text || typeof text !== 'string') return text;
+    if (!/awg/i.test(text)) return text;
     AWG_REGEX.lastIndex = 0;
 
     return text.replace(AWG_REGEX, function () {

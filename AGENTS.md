@@ -39,6 +39,15 @@
 - Indentation/formatting: Prettier defaults; run `npm run format` before commits.
 - Naming: camelCase for functions/variables, UPPER_SNAKE_CASE for constants, filenames lowercase (e.g., `content.js`, `popup.js`).
 
+## Unit Conversion Pipeline & Performance
+
+- Pipeline is: `processElement()` (DOM walk) → `hasRelevantUnits()` (cheap global gate) → `convertText()` (routes by unit category) → `convert<Unit>Text()` (regex replace + formatting).
+- When adding a new unit type, do **both** gates so we don’t scan large text nodes unnecessarily:
+    - **Gate in `src/converter.js`** before calling the converter (cheap hint check like `HINT_RE.test(text)`); do not call `convert<Unit>Text()` unconditionally.
+    - **Gate inside `src/units/<unit>.js`** at the top of `convert<Unit>Text()` as a defensive early-exit (covers direct calls and future refactors).
+- Important footgun: `String.prototype.replace()` with a global regex still scans the whole string even when there are zero matches (the callback simply never runs). Always add a cheap presence hint before running expensive regex conversions.
+- After adding a unit, run `npm test`, `npm run lint`, and re-check perf with `node scripts/run-perf.js` to catch regressions early.
+
 ## Testing Guidelines
 
 - Framework: Jest with `jsdom` environment.
