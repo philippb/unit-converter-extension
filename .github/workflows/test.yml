@@ -29,3 +29,108 @@ jobs:
 
             - name: Run linting
               run: npm run lint
+
+    performance:
+        runs-on: ubuntu-latest
+        if: github.event_name == 'pull_request'
+
+        steps:
+            - name: Checkout PR branch
+              uses: actions/checkout@v3
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: '18'
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Run performance benchmark on PR
+              id: pr-perf
+              run: |
+                  result=$(node scripts/perf-compare.js)
+                  echo "$result"
+                  avg=$(echo "$result" | jq -r '.average')
+                  echo "pr_avg=$avg" >> $GITHUB_OUTPUT
+
+            - name: Checkout base branch
+              uses: actions/checkout@v3
+              with:
+                  ref: ${{ github.event.pull_request.base.ref }}
+                  clean: false
+
+            - name: Install dependencies (base)
+              run: npm ci
+
+            - name: Run performance benchmark on base
+              id: base-perf
+              run: |
+                  result=$(node scripts/perf-compare.js)
+                  echo "$result"
+                  avg=$(echo "$result" | jq -r '.average')
+                  echo "base_avg=$avg" >> $GITHUB_OUTPUT
+
+            - name: Checkout PR branch again for comparison
+              uses: actions/checkout@v3
+
+            - name: Install dependencies (PR)
+              run: npm ci
+
+            - name: Compare performance
+              run: |
+                  echo "Base branch average: ${{ steps.base-perf.outputs.base_avg }} ms"
+                  echo "PR branch average: ${{ steps.pr-perf.outputs.pr_avg }} ms"
+                  node scripts/perf-compare.js --baseline ${{ steps.base-perf.outputs.base_avg }} --threshold 5
+
+            - name: Post performance results
+              if: always()
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const baseAvg = '${{ steps.base-perf.outputs.base_avg }}';
+                      const prAvg = '${{ steps.pr-perf.outputs.pr_avg }}';
+                      const change = ((prAvg - baseAvg) / baseAvg * 100).toFixed(2);
+                      const passed = change <= 5;
+                      const emoji = passed ? '✅' : '❌';
+                      const status = passed ? 'PASSED' : 'FAILED';
+
+                      const body = `## ${emoji} Performance Test ${status}
+
+                      | Metric | Value |
+                      |--------|-------|
+                      | Base branch (${context.payload.pull_request.base.ref}) | ${baseAvg} ms |
+                      | PR branch | ${prAvg} ms |
+                      | Change | ${change}% |
+                      | Threshold | 5% |
+
+                      ${!passed ? '⚠️ **Performance regression detected!** The PR is more than 5% slower than the base branch.' : '👍 Performance is within acceptable limits.'}
+                      `;
+
+                      // Find existing comment
+                      const { data: comments } = await github.rest.issues.listComments({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: context.payload.pull_request.number,
+                      });
+
+                      const botComment = comments.find(c =>
+                          c.user.type === 'Bot' && c.body.includes('Performance Test')
+                      );
+
+                      if (botComment) {
+                          await github.rest.issues.updateComment({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              comment_id: botComment.id,
+                              body: body
+                          });
+                      } else {
+                          await github.rest.issues.createComment({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              issue_number: context.payload.pull_request.number,
+                              body: body
+                          });
+                      }
