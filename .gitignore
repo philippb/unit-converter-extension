@@ -6,6 +6,7 @@ coverage/
 
 # Build output
 dist/
+src/content.bundle.js
 
 # Xcode
 xcuserdata/

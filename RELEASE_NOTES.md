@@ -1,5 +1,17 @@
 # Release Notes
 
+## 1.6 — 2025-12-17
+
+Changes:
+
+- Refactored the converter into a modular pipeline (parsing, exclusions, conversion, formatting) with faster pre-filters and shared range handling to reduce double work and false positives.
+- Added AWG wire-gauge support (inches → mm), shared-inch dimension handling (e.g., `6×9"` now yields `15.24x22.86 cm`), and better inch symbol parsing (double apostrophes/curly quotes).
+- Fixed negative Fahrenheit conversions, strengthened length/liquid/temperature range formatting, and improved precision/number formatting consistency.
+- Hardened exclusions: skip conversions inside code/CodeMirror blocks, quoted strings, currency/colon prefixes, and port numbers; reduce accidental "in" → inches when used as a preposition or after currency.
+- Expanded regression coverage (issues #6, #9, #10, #12, #13, #14, #15, #17, #20, plus #32 tracking) with an aggregated test runner to lock in fixes.
+- Build pipeline now bundles the content script with esbuild, refreshes lint/format rules, and updates Safari build settings to avoid recursive resource copies.
+- Bumped extension manifest to 1.6.
+
 ## 1.5 — 2025-09-05
 
 Changes:
