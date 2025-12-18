@@ -1,0 +1,14 @@
+# Generated/bundled files
+src/content.bundle.js
+
+# Build outputs
+build/
+dist/
+coverage/
+
+# Safari generated project build artifacts
+src/safari/**/build/
+src/safari/**/DerivedData/
+
+# macOS app bundles (if ever checked in or generated)
+*.app/

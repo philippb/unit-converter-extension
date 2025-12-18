@@ -1,2 +1,10 @@
 # Generated files
 src/safari/Metric Imperial Converter/Shared (App)/Resources/Script.js
+src/content.bundle.js
+
+# Build outputs
+build/
+dist/
+coverage/
+src/safari/**/build/
+src/safari/**/DerivedData/
