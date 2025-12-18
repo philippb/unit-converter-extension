@@ -1,6 +1,7 @@
 const { LENGTH_INCH_TO_METERS } = require('../utils/constants.js');
 const { formatLengthMeasurement } = require('../formatting/units.js');
 const { shouldExcludeMatch } = require('../exclusions/patterns.js');
+const { buildInsertedParenthetical } = require('../utils/insertMarkers.js');
 
 const AWG_REGEX = /(\d{1,3}(?:\.\d+)?)(?:\s*-\s*)?\s*AWG\b/gi;
 const AWG_RESOLUTION_METERS = 0.000001;
@@ -12,7 +13,7 @@ function convertAwgToMeters(gaugeValue) {
     return diameterInInches * LENGTH_INCH_TO_METERS;
 }
 
-function convertAwgText(text) {
+function convertAwgText(text, options = {}) {
     if (!text || typeof text !== 'string') return text;
     if (!/awg/i.test(text)) return text;
     AWG_REGEX.lastIndex = 0;
@@ -34,7 +35,7 @@ function convertAwgText(text) {
         const formatted = formatLengthMeasurement(meters, {
             resolutionMeters: AWG_RESOLUTION_METERS,
         });
-        return `${match} (${formatted})`;
+        return `${match} ${buildInsertedParenthetical(formatted, options)}`;
     });
 }
 

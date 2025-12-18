@@ -46,6 +46,7 @@
     - **Gate in `src/converter.js`** before calling the converter (cheap hint check like `HINT_RE.test(text)`); do not call `convert<Unit>Text()` unconditionally.
     - **Gate inside `src/units/<unit>.js`** at the top of `convert<Unit>Text()` as a defensive early-exit (covers direct calls and future refactors).
 - Important footgun: `String.prototype.replace()` with a global regex still scans the whole string even when there are zero matches (the callback simply never runs). Always add a cheap presence hint before running expensive regex conversions.
+- Range merging is especially expensive because it can scan the same string multiple times (once per unit variant). Always add unit-specific hint gates before calling `mergeUnitRanges()` (see the `RANGE_*_HINT_RE` pattern in `src/converter.js`).
 - After adding a unit, run `npm test`, `npm run lint`, and re-check perf with `node scripts/run-perf.js` to catch regressions early.
 
 ## Testing Guidelines

@@ -35,6 +35,7 @@ const {
     formatLiquidRange,
     formatTemperatureRange,
 } = require('./formatting/ranges.js');
+const { buildInsertedParenthetical } = require('./utils/insertMarkers.js');
 
 const FAST_NUMBER_HINT = new RegExp(String.raw`[0-9${UNICODE_FRACTIONS}]`, 'u');
 const RANGE_SEP_RE = /^(?:\s*)(?:-|–|—|to|through|thru)(?:\s*)$/i;
@@ -46,6 +47,40 @@ const VALUE_TAIL_RE = new RegExp(
 
 const QUOTE_LENGTH_HINT_RE = new RegExp(
     String.raw`(?:\d|[${UNICODE_FRACTIONS}])\s*[${INCH_SYMBOLS}${FEET_SYMBOLS}]`,
+    'iu'
+);
+
+// Range-merging unit hints to avoid running multiple full measurement scans
+const RANGE_LENGTH_FEET_INCHES_HINT_RE = new RegExp(
+    String.raw`(?:\bfeet\b|\bfoot\b|\bft\b|\binch(?:es)?\b|\b(?:\d|[${UNICODE_FRACTIONS}])\s*in\.?\b)`,
+    'iu'
+);
+const RANGE_LENGTH_MILES_HINT_RE = /\b(?:mi|miles?)\b/i;
+const RANGE_LENGTH_YARDS_HINT_RE = /\b(?:yd|yards?)\b/i;
+
+const RANGE_LIQUID_CUPS_HINT_RE = new RegExp(
+    String.raw`(?:\bcups?\b|\b(?:\d|[${UNICODE_FRACTIONS}])\s*c\b)`,
+    'iu'
+);
+const RANGE_LIQUID_GALLONS_HINT_RE = new RegExp(
+    String.raw`(?:\bgallons?\b|\b(?:\d|[${UNICODE_FRACTIONS}])\s*gal\b)`,
+    'iu'
+);
+const RANGE_LIQUID_QUARTS_HINT_RE = new RegExp(
+    String.raw`(?:\bquarts?\b|\b(?:\d|[${UNICODE_FRACTIONS}])\s*qt\b)`,
+    'iu'
+);
+const RANGE_LIQUID_PINTS_HINT_RE = new RegExp(
+    String.raw`(?:\bpints?\b|\b(?:\d|[${UNICODE_FRACTIONS}])\s*pt\b)`,
+    'iu'
+);
+const RANGE_LIQUID_FLOZ_HINT_RE = /(?:\bfluid\s+ounces?\b|\bfl\.?\s*oz\b)/i;
+const RANGE_LIQUID_TBSP_HINT_RE = new RegExp(
+    String.raw`(?:\btablespoons?\b|\b(?:\d|[${UNICODE_FRACTIONS}])\s*(?:tbsp|tbs|tb)\b)`,
+    'iu'
+);
+const RANGE_LIQUID_TSP_HINT_RE = new RegExp(
+    String.raw`(?:\bteaspoons?\b|\b(?:\d|[${UNICODE_FRACTIONS}])\s*(?:tsp|ts)\b)`,
     'iu'
 );
 
@@ -115,7 +150,7 @@ function applyReplacements(original, replacements) {
  * Expects a cached (global) regex; resets `lastIndex` before scanning.
  */
 function mergeUnitRanges(s, config) {
-    const { unitSpec, regex, converter, formatter, addPlaceholder } = config;
+    const { unitSpec, regex, converter, formatter, addPlaceholder, options } = config;
     const replacements = [];
 
     regex.lastIndex = 0;
@@ -141,7 +176,9 @@ function mergeUnitRanges(s, config) {
                 const val1 = converter(leftParsed);
                 const val2 = converter(rightParsed);
                 const formatted = formatter(val1, val2);
-                const token = addPlaceholder(`${s.slice(prev.start, curr.end)} (${formatted})`);
+                const token = addPlaceholder(
+                    `${s.slice(prev.start, curr.end)} ${buildInsertedParenthetical(formatted, options)}`
+                );
                 replacements.push({ start: prev.start, end: curr.end, token });
                 continue;
             }
@@ -174,7 +211,9 @@ function mergeUnitRanges(s, config) {
                     const val1 = converter(leftParsed);
                     const val2 = converter(rightParsed);
                     const formatted = formatter(val1, val2);
-                    const token = addPlaceholder(`${s.slice(tailStart, curr.end)} (${formatted})`);
+                    const token = addPlaceholder(
+                        `${s.slice(tailStart, curr.end)} ${buildInsertedParenthetical(formatted, options)}`
+                    );
                     replacements.push({ start: tailStart, end: curr.end, token });
                 }
             }
@@ -228,7 +267,6 @@ const LIQUID_CONVERTERS = {
  */
 // Lightweight numeric + unit hint to gate scanning for all units (abbrev + spelled-out)
 const FAST_NUMBER_HINT_GLOBAL = new RegExp(String.raw`[0-9${UNICODE_FRACTIONS}]`, 'u');
-const UNIT_HINT_GROUP = new RegExp(`(?:${UNIT_HINT_PATTERN})`, 'iu');
 const NUM_TOKEN_GROUP = (function () {
     const unicode = UNICODE_FRACTIONS;
     // decimal | mixed a b/c | simple a/b | unicode fraction | integer with thousands
@@ -236,8 +274,11 @@ const NUM_TOKEN_GROUP = (function () {
     return new RegExp(num, 'u');
 })();
 const RE_UNIT_NUM_HINT = (function () {
-    const num = NUM_TOKEN_GROUP.source;
-    const unit = UNIT_HINT_GROUP.source;
+    // Fast “number-ish” prefix (digits/fractions + separators) to avoid scanning whole strings
+    // with the full measurement regex. This is a hint only (high recall, reasonable precision).
+    const unicode = UNICODE_FRACTIONS;
+    const num = String.raw`[0-9${unicode}][0-9${unicode},./\s]{0,24}`;
+    const unit = String.raw`(?:${UNIT_HINT_PATTERN})`;
     return new RegExp(`(?:${num})\\s*(?:${unit})|(?:${unit})\\s*(?:${num})`, 'iu');
 })();
 const RE_INCH_SYMBOL_HINT = new RegExp(
@@ -248,11 +289,8 @@ const RE_INCH_SYMBOL_HINT = new RegExp(
 function hasRelevantUnits(text) {
     if (!text || typeof text !== 'string') return false;
 
-    // Quick exits: no digits or unicode fractions, and no temperature/time matches
+    // Quick exit: no digits or unicode fractions
     if (!FAST_NUMBER_HINT_GLOBAL.test(text)) {
-        // Temps and times always include digits in our patterns; keep checks anyway
-        if (RE_TEMPERATURE_F_TEST.test(text)) return true;
-        if (RE_TIME_TEST.test(text)) return true;
         return false;
     }
 
@@ -269,8 +307,7 @@ function hasRelevantUnits(text) {
     return false;
 }
 
-// Update the main convertText function to handle time zones
-function convertText(text) {
+function convertTextInternal(text, options = {}) {
     let converted = text;
 
     // Fast path: if there are no digits or unicode fractions, skip entirely
@@ -298,27 +335,36 @@ function convertText(text) {
     // Perform merges prior to standard conversions (only when relevant)
     if (RANGE_PRESENCE_RE.test(converted)) {
         if (hasLengthUnits) {
-            converted = mergeUnitRanges(converted, {
-                unitSpec: UNITS.LENGTH.FEET_INCHES,
-                regex: RANGE_REGEXES.feetInches,
-                converter: LENGTH_CONVERTERS.feetInches,
-                formatter: formatLengthRange,
-                addPlaceholder,
-            });
-            converted = mergeUnitRanges(converted, {
-                unitSpec: UNITS.LENGTH.MILES,
-                regex: RANGE_REGEXES.miles,
-                converter: LENGTH_CONVERTERS.miles,
-                formatter: formatLengthRange,
-                addPlaceholder,
-            });
-            converted = mergeUnitRanges(converted, {
-                unitSpec: UNITS.LENGTH.YARDS,
-                regex: RANGE_REGEXES.yards,
-                converter: LENGTH_CONVERTERS.yards,
-                formatter: formatLengthRange,
-                addPlaceholder,
-            });
+            if (quoteLengthHint || RANGE_LENGTH_FEET_INCHES_HINT_RE.test(converted)) {
+                converted = mergeUnitRanges(converted, {
+                    unitSpec: UNITS.LENGTH.FEET_INCHES,
+                    regex: RANGE_REGEXES.feetInches,
+                    converter: LENGTH_CONVERTERS.feetInches,
+                    formatter: formatLengthRange,
+                    addPlaceholder,
+                    options,
+                });
+            }
+            if (RANGE_LENGTH_MILES_HINT_RE.test(converted)) {
+                converted = mergeUnitRanges(converted, {
+                    unitSpec: UNITS.LENGTH.MILES,
+                    regex: RANGE_REGEXES.miles,
+                    converter: LENGTH_CONVERTERS.miles,
+                    formatter: formatLengthRange,
+                    addPlaceholder,
+                    options,
+                });
+            }
+            if (RANGE_LENGTH_YARDS_HINT_RE.test(converted)) {
+                converted = mergeUnitRanges(converted, {
+                    unitSpec: UNITS.LENGTH.YARDS,
+                    regex: RANGE_REGEXES.yards,
+                    converter: LENGTH_CONVERTERS.yards,
+                    formatter: formatLengthRange,
+                    addPlaceholder,
+                    options,
+                });
+            }
         }
 
         if (hasWeightUnits) {
@@ -328,78 +374,100 @@ function convertText(text) {
                 converter: WEIGHT_CONVERTER,
                 formatter: formatWeightRange,
                 addPlaceholder,
+                options,
             });
         }
 
         if (hasLiquidUnits) {
-            converted = mergeUnitRanges(converted, {
-                unitSpec: UNITS.LIQUID.CUPS,
-                regex: RANGE_REGEXES.cups,
-                converter: LIQUID_CONVERTERS.cups,
-                formatter: formatLiquidRange,
-                addPlaceholder,
-            });
-            converted = mergeUnitRanges(converted, {
-                unitSpec: UNITS.LIQUID.GALLONS,
-                regex: RANGE_REGEXES.gallons,
-                converter: LIQUID_CONVERTERS.gallons,
-                formatter: formatLiquidRange,
-                addPlaceholder,
-            });
-            converted = mergeUnitRanges(converted, {
-                unitSpec: UNITS.LIQUID.QUARTS,
-                regex: RANGE_REGEXES.quarts,
-                converter: LIQUID_CONVERTERS.quarts,
-                formatter: formatLiquidRange,
-                addPlaceholder,
-            });
-            converted = mergeUnitRanges(converted, {
-                unitSpec: UNITS.LIQUID.PINTS,
-                regex: RANGE_REGEXES.pints,
-                converter: LIQUID_CONVERTERS.pints,
-                formatter: formatLiquidRange,
-                addPlaceholder,
-            });
-            converted = mergeUnitRanges(converted, {
-                unitSpec: UNITS.LIQUID.FLOZ,
-                regex: RANGE_REGEXES.floz,
-                converter: LIQUID_CONVERTERS.floz,
-                formatter: formatLiquidRange,
-                addPlaceholder,
-            });
-            converted = mergeUnitRanges(converted, {
-                unitSpec: UNITS.LIQUID.TBSP,
-                regex: RANGE_REGEXES.tbsp,
-                converter: LIQUID_CONVERTERS.tbsp,
-                formatter: formatLiquidRange,
-                addPlaceholder,
-            });
-            converted = mergeUnitRanges(converted, {
-                unitSpec: UNITS.LIQUID.TSP,
-                regex: RANGE_REGEXES.tsp,
-                converter: LIQUID_CONVERTERS.tsp,
-                formatter: formatLiquidRange,
-                addPlaceholder,
-            });
+            if (RANGE_LIQUID_CUPS_HINT_RE.test(converted)) {
+                converted = mergeUnitRanges(converted, {
+                    unitSpec: UNITS.LIQUID.CUPS,
+                    regex: RANGE_REGEXES.cups,
+                    converter: LIQUID_CONVERTERS.cups,
+                    formatter: formatLiquidRange,
+                    addPlaceholder,
+                    options,
+                });
+            }
+            if (RANGE_LIQUID_GALLONS_HINT_RE.test(converted)) {
+                converted = mergeUnitRanges(converted, {
+                    unitSpec: UNITS.LIQUID.GALLONS,
+                    regex: RANGE_REGEXES.gallons,
+                    converter: LIQUID_CONVERTERS.gallons,
+                    formatter: formatLiquidRange,
+                    addPlaceholder,
+                    options,
+                });
+            }
+            if (RANGE_LIQUID_QUARTS_HINT_RE.test(converted)) {
+                converted = mergeUnitRanges(converted, {
+                    unitSpec: UNITS.LIQUID.QUARTS,
+                    regex: RANGE_REGEXES.quarts,
+                    converter: LIQUID_CONVERTERS.quarts,
+                    formatter: formatLiquidRange,
+                    addPlaceholder,
+                    options,
+                });
+            }
+            if (RANGE_LIQUID_PINTS_HINT_RE.test(converted)) {
+                converted = mergeUnitRanges(converted, {
+                    unitSpec: UNITS.LIQUID.PINTS,
+                    regex: RANGE_REGEXES.pints,
+                    converter: LIQUID_CONVERTERS.pints,
+                    formatter: formatLiquidRange,
+                    addPlaceholder,
+                    options,
+                });
+            }
+            if (RANGE_LIQUID_FLOZ_HINT_RE.test(converted)) {
+                converted = mergeUnitRanges(converted, {
+                    unitSpec: UNITS.LIQUID.FLOZ,
+                    regex: RANGE_REGEXES.floz,
+                    converter: LIQUID_CONVERTERS.floz,
+                    formatter: formatLiquidRange,
+                    addPlaceholder,
+                    options,
+                });
+            }
+            if (RANGE_LIQUID_TBSP_HINT_RE.test(converted)) {
+                converted = mergeUnitRanges(converted, {
+                    unitSpec: UNITS.LIQUID.TBSP,
+                    regex: RANGE_REGEXES.tbsp,
+                    converter: LIQUID_CONVERTERS.tbsp,
+                    formatter: formatLiquidRange,
+                    addPlaceholder,
+                    options,
+                });
+            }
+            if (RANGE_LIQUID_TSP_HINT_RE.test(converted)) {
+                converted = mergeUnitRanges(converted, {
+                    unitSpec: UNITS.LIQUID.TSP,
+                    regex: RANGE_REGEXES.tsp,
+                    converter: LIQUID_CONVERTERS.tsp,
+                    formatter: formatLiquidRange,
+                    addPlaceholder,
+                    options,
+                });
+            }
         }
     }
 
     if (AREA_HINT_RE.test(converted)) {
-        converted = convertAreaText(converted);
+        converted = convertAreaText(converted, options);
     }
     if (hasLengthUnits) {
-        converted = convertLengthText(converted);
+        converted = convertLengthText(converted, options);
     }
     if (hasLiquidUnits) {
         // needs to come before weight, since it will otherwise match "fl oz"
-        converted = convertLiquidText(converted);
+        converted = convertLiquidText(converted, options);
     }
     if (hasWeightUnits) {
-        converted = convertWeightText(converted);
+        converted = convertWeightText(converted, options);
     }
 
     if (AWG_HINT_RE.test(converted)) {
-        converted = convertAwgText(converted);
+        converted = convertAwgText(converted, options);
     }
 
     // Temperature ranges (Fahrenheit) - handle before individual conversions
@@ -412,11 +480,13 @@ function convertText(text) {
             const c1 = ((f1 - 32) * 5) / 9;
             const c2 = ((f2 - 32) * 5) / 9;
             const formatted = formatTemperatureRange(c1, c2);
-            return addPlaceholder(`${match} (${formatted}°C)`);
+            return addPlaceholder(
+                `${match} ${buildInsertedParenthetical(`${formatted}°C`, options)}`
+            );
         });
 
         // Then convert individual temperatures
-        converted = convertTemperatureText(converted);
+        converted = convertTemperatureText(converted, options);
     }
 
     // Restore placeholders (prevents inner tokens from being re-converted)
@@ -427,10 +497,18 @@ function convertText(text) {
     // Check for time zone expressions
     const hasTimeZone = RE_TIME_TEST.test(converted);
     if (hasTimeZone) {
-        converted = convertTimeZoneText(converted);
+        converted = convertTimeZoneText(converted, options);
     }
 
     return converted;
 }
 
-module.exports = { convertText, hasRelevantUnits };
+function convertText(text) {
+    return convertTextInternal(text, {});
+}
+
+function convertTextWithInsertMarkers(text) {
+    return convertTextInternal(text, { insertMarkers: true });
+}
+
+module.exports = { convertText, convertTextWithInsertMarkers, hasRelevantUnits };

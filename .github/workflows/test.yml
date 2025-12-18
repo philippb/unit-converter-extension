@@ -8,6 +8,10 @@ on:
         branches:
             - '**'
 
+permissions:
+    contents: read
+    pull-requests: write
+
 jobs:
     test:
         runs-on: ubuntu-latest
@@ -30,9 +34,26 @@ jobs:
             - name: Run linting
               run: npm run lint
 
-    performance:
+    check-src-changes:
         runs-on: ubuntu-latest
         if: github.event_name == 'pull_request'
+        outputs:
+            src_changed: ${{ steps.changes.outputs.src }}
+        steps:
+            - uses: actions/checkout@v3
+            - uses: dorny/paths-filter@v3
+              id: changes
+              with:
+                  filters: |
+                      src:
+                        - 'src/**'
+                        - 'scripts/perf-compare.js'
+                        - 'test/performance.test.js'
+
+    performance:
+        runs-on: ubuntu-latest
+        needs: check-src-changes
+        if: github.event_name == 'pull_request' && needs.check-src-changes.outputs.src_changed == 'true'
 
         steps:
             - name: Checkout PR branch

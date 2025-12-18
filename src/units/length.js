@@ -17,7 +17,27 @@ const {
 } = require('../utils/precision.js');
 const { formatLengthMeasurement } = require('../formatting/units.js');
 const { shouldExcludeMatch } = require('../exclusions/patterns.js');
+const { buildInsertedParenthetical } = require('../utils/insertMarkers.js');
 const DOUBLE_APOSTROPHE_TOKENS = ["''", '’’'];
+
+const INCH_SYMBOL_CHARS = INCH_SYMBOLS.split('');
+const FEET_SYMBOL_CHARS = FEET_SYMBOLS.split('');
+
+const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
+const INCH_SYMBOL_TOKEN = String.raw`(?:''|’’|[${INCH_SYMBOLS}])`;
+
+const DIMENSION_REGEX = new RegExp(
+    String.raw`(${VALUE_PART})\s*${INCH_SYMBOL_TOKEN}?\s*[x×]\s*(${VALUE_PART})\s*${INCH_SYMBOL_TOKEN}(?!\s*\()`,
+    'giu'
+);
+const INCHES_SYMBOL_REGEX = new RegExp(
+    String.raw`(${VALUE_PART})\s*${INCH_SYMBOL_TOKEN}(?!\s*\()`,
+    'giu'
+);
+const FEET_SYMBOL_REGEX = new RegExp(
+    String.raw`(${VALUE_PART})\s*[${FEET_SYMBOLS}](?!['\u2019])(?!\s*\()(?!s)`,
+    'giu'
+);
 
 function containsDoubleApostrophes(text) {
     return DOUBLE_APOSTROPHE_TOKENS.some((token) => text.includes(token));
@@ -40,30 +60,14 @@ function convertLengthToMeters(feet = 0, inches = 0, miles = 0, yards = 0) {
     );
 }
 
-function convertLengthText(text) {
+function convertLengthText(text, options = {}) {
     let converted = text;
-    const VALUE_PART = String.raw`(?:(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+|(?:\d{1,3}(?:,\d{3})+|\d+)-\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)\s+\d+\/\d+|\d+\/\d+|(?:\d{1,3}(?:,\d{3})+|\d+)[${UNICODE_FRACTIONS}]?|[${UNICODE_FRACTIONS}])`;
-    const INCH_SYMBOL_TOKEN = String.raw`(?:''|’’|[${INCH_SYMBOLS}])`;
-
-    const dimensionRegex = new RegExp(
-        String.raw`(${VALUE_PART})\s*${INCH_SYMBOL_TOKEN}?\s*[x×]\s*(${VALUE_PART})\s*${INCH_SYMBOL_TOKEN}(?!\s*\()`,
-        'giu'
-    );
-
-    const inchesSymbolRegex = new RegExp(
-        String.raw`(${VALUE_PART})\s*${INCH_SYMBOL_TOKEN}(?!\s*\()`,
-        'giu'
-    );
-    const feetSymbolRegex = new RegExp(
-        String.raw`(${VALUE_PART})\s*[${FEET_SYMBOLS}](?!['\u2019])(?!\s*\()(?!s)`,
-        'giu'
-    );
 
     if (
-        INCH_SYMBOLS.split('').some((sym) => converted.includes(sym)) ||
+        INCH_SYMBOL_CHARS.some((sym) => converted.includes(sym)) ||
         containsDoubleApostrophes(converted)
     ) {
-        converted = converted.replace(dimensionRegex, function () {
+        converted = converted.replace(DIMENSION_REGEX, function () {
             const args = Array.from(arguments);
             const match = args[0];
             const value1 = args[1];
@@ -94,15 +98,16 @@ function convertLengthText(text) {
             const numericPart1 = formatted1.replace(/\s*(cm|mm|m|km)\s*$/i, '');
             const normalizedMatch = normalizeDoubleApostrophes(match);
 
-            return `${normalizedMatch} (${numericPart1}x${formatted2})`;
+            const formatted = `${numericPart1}x${formatted2}`;
+            return `${normalizedMatch} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
     if (
-        INCH_SYMBOLS.split('').some((sym) => converted.includes(sym)) ||
+        INCH_SYMBOL_CHARS.some((sym) => converted.includes(sym)) ||
         containsDoubleApostrophes(converted)
     ) {
-        converted = converted.replace(inchesSymbolRegex, function () {
+        converted = converted.replace(INCHES_SYMBOL_REGEX, function () {
             const args = Array.from(arguments);
             const match = args[0];
             const value = args[1];
@@ -115,13 +120,13 @@ function convertLengthText(text) {
             const meters = convertLengthToMeters(0, inches, 0);
             const resolutionMeters = inferResolutionMetersFromNumber(raw, 'in');
             const normalizedMatch = normalizeDoubleApostrophes(match);
-            const result = `${normalizedMatch} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
-            return result;
+            const formatted = formatLengthMeasurement(meters, { resolutionMeters });
+            return `${normalizedMatch} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
-    if (FEET_SYMBOLS.split('').some((sym) => converted.includes(sym))) {
-        converted = converted.replace(feetSymbolRegex, function () {
+    if (FEET_SYMBOL_CHARS.some((sym) => converted.includes(sym))) {
+        converted = converted.replace(FEET_SYMBOL_REGEX, function () {
             const args = Array.from(arguments);
             const match = args[0];
             const value = args[1];
@@ -133,7 +138,8 @@ function convertLengthText(text) {
             if (Number.isNaN(feet)) return match;
             const meters = convertLengthToMeters(feet, 0, 0);
             const resolutionMeters = inferResolutionMetersFromNumber(raw, 'ft');
-            return `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
+            const formatted = formatLengthMeasurement(meters, { resolutionMeters });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
@@ -167,7 +173,8 @@ function convertLengthText(text) {
                 match,
                 UNITS.LENGTH.FEET_INCHES
             );
-            return `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
+            const formatted = formatLengthMeasurement(meters, { resolutionMeters });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
@@ -191,7 +198,8 @@ function convertLengthText(text) {
                 extractFirstValueToken(match),
                 'mi'
             );
-            return `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
+            const formatted = formatLengthMeasurement(meters, { resolutionMeters });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
@@ -215,7 +223,8 @@ function convertLengthText(text) {
                 extractFirstValueToken(match),
                 'yd'
             );
-            return `${match} (${formatLengthMeasurement(meters, { resolutionMeters })})`;
+            const formatted = formatLengthMeasurement(meters, { resolutionMeters });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 

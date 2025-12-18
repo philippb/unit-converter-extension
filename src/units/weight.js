@@ -5,6 +5,7 @@ const { inferResolutionFromParsedMeasurement } = require('../utils/precision.js'
 const { formatWeightMeasurement } = require('../formatting/units.js');
 const { shouldExcludeMatch } = require('../exclusions/patterns.js');
 const { UNITS } = require('./index.js');
+const { buildInsertedParenthetical } = require('../utils/insertMarkers.js');
 
 function shouldSkipMatch(match, offset, source) {
     return shouldExcludeMatch({ text: source, matchStart: offset, match });
@@ -14,7 +15,7 @@ function convertWeightToGrams(pounds = 0, ounces = 0) {
     return pounds * WEIGHT_POUND_TO_GRAMS + ounces * WEIGHT_OUNCE_TO_GRAMS;
 }
 
-function convertWeightText(text) {
+function convertWeightText(text, options = {}) {
     let converted = text;
     const lower = converted.toLowerCase();
     if (
@@ -37,7 +38,8 @@ function convertWeightText(text) {
                 primary: WEIGHT_POUND_TO_GRAMS,
                 secondary: WEIGHT_OUNCE_TO_GRAMS,
             });
-            return `${match} (${formatWeightMeasurement(grams, { resolutionGrams })})`;
+            const formatted = formatWeightMeasurement(grams, { resolutionGrams });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
     return converted;

@@ -45,7 +45,10 @@ function hasCodeRelatedClass(classNames) {
 }
 
 function isContentEditableElement(node) {
-    if (!node || !node.getAttribute) return false;
+    if (!node) return false;
+    if (node.isContentEditable) return true;
+    if (!node.getAttribute) return false;
+    if (node.hasAttribute && !node.hasAttribute('contenteditable')) return false;
     const attr = node.getAttribute('contenteditable');
     if (!attr && attr !== '') return false;
     const normalized = String(attr).trim().toLowerCase();

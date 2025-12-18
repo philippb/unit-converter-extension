@@ -13,12 +13,13 @@ const { inferResolutionFromParsedMeasurement } = require('../utils/precision.js'
 const { formatLiquidMeasurement } = require('../formatting/units.js');
 const { shouldExcludeMatch } = require('../exclusions/patterns.js');
 const { UNITS } = require('./index.js');
+const { buildInsertedParenthetical } = require('../utils/insertMarkers.js');
 
 function shouldSkipMatch(match, offset, source) {
     return shouldExcludeMatch({ text: source, matchStart: offset, match });
 }
 
-function convertLiquidText(text) {
+function convertLiquidText(text, options = {}) {
     let converted = text;
     const lower = converted.toLowerCase();
 
@@ -48,7 +49,8 @@ function convertLiquidText(text) {
                 primary: LIQUID_GALLON_TO_L,
                 secondary: LIQUID_QUART_TO_L,
             });
-            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
+            const formatted = formatLiquidMeasurement(liters, { resolutionLiters });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
@@ -72,7 +74,8 @@ function convertLiquidText(text) {
                 primary: LIQUID_CUP_TO_L,
                 secondary: LIQUID_FLOZ_TO_L,
             });
-            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
+            const formatted = formatLiquidMeasurement(liters, { resolutionLiters });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
@@ -101,7 +104,8 @@ function convertLiquidText(text) {
                 primary: LIQUID_TBSP_TO_L,
                 secondary: LIQUID_TSP_TO_L,
             });
-            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
+            const formatted = formatLiquidMeasurement(liters, { resolutionLiters });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
@@ -120,7 +124,8 @@ function convertLiquidText(text) {
             const resolutionLiters = inferResolutionFromParsedMeasurement(parsed, {
                 primary: LIQUID_GALLON_TO_L,
             });
-            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
+            const formatted = formatLiquidMeasurement(liters, { resolutionLiters });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
@@ -139,7 +144,8 @@ function convertLiquidText(text) {
             const resolutionLiters = inferResolutionFromParsedMeasurement(parsed, {
                 primary: LIQUID_QUART_TO_L,
             });
-            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
+            const formatted = formatLiquidMeasurement(liters, { resolutionLiters });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
@@ -158,7 +164,8 @@ function convertLiquidText(text) {
             const resolutionLiters = inferResolutionFromParsedMeasurement(parsed, {
                 primary: LIQUID_PINT_TO_L,
             });
-            return `${match} (${formatLiquidMeasurement(liters, { resolutionLiters })})`;
+            const formatted = formatLiquidMeasurement(liters, { resolutionLiters });
+            return `${match} ${buildInsertedParenthetical(formatted, options)}`;
         });
     }
 
