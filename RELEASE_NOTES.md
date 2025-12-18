@@ -1,5 +1,13 @@
 # Release Notes
 
+## 1.7 — 2025-12-18
+
+Changes:
+
+- Significant performance improvements: reduced conversion time from ~120ms to ~50ms through optimized DOM traversal and regex caching.
+- Added GitHub workflow to gate performance regressions and track conversion benchmarks.
+- Bumped extension manifest to 1.7.
+
 ## 1.6 — 2025-12-17
 
 Changes:
